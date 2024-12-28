@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ company_name }} - {% block title %}Welcome{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+    <div class="container py-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1>{{ company_name }}</h1>
+                <p class="text-muted">Empowering Research, One Solution at a Time</p>
+                <p><em>{{ services_outline }}</em></p>
+            </div>
+            <div>
+                {% if current_user.is_authenticated %}
+                    <p>Welcome, {{ current_user.username }}!</p>
+                    <a href="/logout" class="btn btn-danger">Logout</a>
+                {% else %}
+                    <a href="/login" class="btn btn-primary">Login</a>
+                    <a href="/register" class="btn btn-secondary">Register</a>
+                {% endif %}
+            </div>
+        </header>
+        
+        {% block content %}{% endblock %}
+
+        <footer class="text-center py-3 mt-4">
+            <p>&copy; 2024 {{ company_name }}. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>
+
+
+
+
+
+

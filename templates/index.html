@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-4">Dashboard</h1>
+
+    <div class="text-center mb-4">
+        <a href="/order" class="btn btn-primary mx-2">Place an Order</a>
+        <a href="/schedule" class="btn btn-secondary mx-2">Schedule Training</a>
+        <a href="/payment" class="btn btn-success mx-2">Make a Payment</a>
+        {% if current_user.is_admin %}
+            <a href="/admin/orders" class="btn btn-warning mx-2">View All Orders</a>
+        {% endif %}
+    </div>
+
+    <h2>Your Orders</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Service</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if orders %}
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order[0] }}</td>
+                    <td>{{ order[1] }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="2" class="text-center">No orders found.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <h2>Your Schedules</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if schedules %}
+                {% for schedule in schedules %}
+                <tr>
+                    <td>{{ schedule[0] }}</td>
+                    <td>{{ schedule[1] }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="2" class="text-center">No schedules found.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <h2>Your Payments</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Amount (UGX)</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if payments %}
+                {% for payment in payments %}
+                <tr>
+                    <td>{{ payment[0] }}</td>
+                    <td>{{ payment[1] }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="2" class="text-center">No payments found.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+
+
+
+
+
