@@ -3,6 +3,7 @@
 {% block content %}
 <div class="container mt-5">
     <h2>All Orders</h2>
+    {% if orders %}
     <table class="table table-striped">
         <thead>
             <tr>
@@ -30,8 +31,13 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p class="text-center">No orders found.</p>
+    {% endif %}
 </div>
 {% endblock %}
+
+
 
 
 

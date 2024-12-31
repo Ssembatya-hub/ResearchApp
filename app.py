@@ -238,9 +238,10 @@ def admin_orders():
     if not is_admin():
         flash("You do not have permission to view this page.", "danger")
         return redirect(url_for('index'))
-    
+
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
+    # Fetch all orders along with the usernames of the users who placed them
     cursor.execute("""
         SELECT orders.id, users.username, orders.name, orders.service
         FROM orders
@@ -248,6 +249,10 @@ def admin_orders():
     """)
     orders = cursor.fetchall()
     conn.close()
+
+    # Debugging: Print fetched orders to the console
+    print("Admin Orders:", orders)
+
     return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
 
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
