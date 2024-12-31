@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash 
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import sqlite3
 import os
@@ -232,15 +232,12 @@ def payment():
         return redirect(url_for('index'))
     return render_template('payment.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
 
-@app.route('/admin/orders', methods=['GET'])
+@app.route('/admin/orders', methods=['GET', 'POST'])
 @login_required
 def admin_orders():
-    # Check if the current user is an admin
     if not is_admin():
         flash("You do not have permission to view this page.", "danger")
         return redirect(url_for('index'))
-
-    # Fetch all orders for the admin
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute("""
@@ -250,8 +247,6 @@ def admin_orders():
     """)
     orders = cursor.fetchall()
     conn.close()
-
-    # Render the admin orders template
     return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
 
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
@@ -327,6 +322,7 @@ def view_files():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
