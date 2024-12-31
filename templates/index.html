@@ -5,7 +5,6 @@
 {% block content %}
 <div class="container">
     <h1 class="text-center mb-4">Dashboard</h1>
-
     <div class="text-center mb-4">
         <a href="/order" class="btn btn-primary mx-2">Place an Order</a>
         <a href="/schedule" class="btn btn-secondary mx-2">Schedule Training</a>
@@ -24,18 +23,12 @@
             </tr>
         </thead>
         <tbody>
-            {% if orders %}
-                {% for order in orders %}
-                <tr>
-                    <td>{{ order[0] }}</td>
-                    <td>{{ order[1] }}</td>
-                </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="2" class="text-center">No orders found.</td>
-                </tr>
-            {% endif %}
+            {% for order in orders %}
+            <tr>
+                <td>{{ order[0] }}</td>
+                <td>{{ order[1] }}</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 
@@ -48,18 +41,12 @@
             </tr>
         </thead>
         <tbody>
-            {% if schedules %}
-                {% for schedule in schedules %}
-                <tr>
-                    <td>{{ schedule[0] }}</td>
-                    <td>{{ schedule[1] }}</td>
-                </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="2" class="text-center">No schedules found.</td>
-                </tr>
-            {% endif %}
+            {% for schedule in schedules %}
+            <tr>
+                <td>{{ schedule[0] }}</td>
+                <td>{{ schedule[1] }}</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 
@@ -68,26 +55,29 @@
         <thead>
             <tr>
                 <th>Amount (UGX)</th>
+                <th>Purpose</th>
+                <th>Mobile Number</th>
                 <th>Date</th>
             </tr>
         </thead>
         <tbody>
-            {% if payments %}
-                {% for payment in payments %}
-                <tr>
-                    <td>{{ payment[0] }}</td>
-                    <td>{{ payment[1] }}</td>
-                </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="2" class="text-center">No payments found.</td>
-                </tr>
-            {% endif %}
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment[0] }}</td>
+                <td>{{ payment[1] }}</td>
+                <td>{{ payment[2] }}</td>
+                <td>{{ payment[3] }}</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 </div>
 {% endblock %}
+
+
+
+
+
 
 
 

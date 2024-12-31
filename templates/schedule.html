@@ -1,22 +1,24 @@
 {% extends "base.html" %}
-
-{% block title %}Schedule Training{% endblock %}
-
 {% block content %}
-    <h1 class="text-center">Schedule Training</h1>
-    <form method="post" class="p-4 border rounded bg-white shadow-sm">
+<div class="container mt-5">
+    <h2>Schedule Training</h2>
+    <form method="post">
         <div class="mb-3">
-            <label for="name" class="form-label">Name:</label>
-            <input type="text" name="name" id="name" class="form-control" required>
+            <label for="name" class="form-label">Training Name</label>
+            <input type="text" name="name" class="form-control" id="name" required>
         </div>
         <div class="mb-3">
-            <label for="date" class="form-label">Select a Date:</label>
-            <input type="date" name="date" id="date" class="form-control" required>
+            <label for="date" class="form-label">Date</label>
+            <input type="date" name="date" class="form-control" id="date" required>
         </div>
-        <div class="text-center">
-            <button type="submit" class="btn btn-primary">Schedule</button>
-            <a href="/" class="btn btn-secondary">Cancel</a>
-        </div>
+        <button type="submit" class="btn btn-primary">Schedule</button>
     </form>
+</div>
 {% endblock %}
+
+
+
+
+
+
 

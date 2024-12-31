@@ -1,45 +1,30 @@
 {% extends "base.html" %}
-
-{% block title %}Make a Payment{% endblock %}
-
 {% block content %}
-<div class="container">
-    <h1 class="text-center mb-4">Make a Payment</h1>
-    <p class="text-center"><em>{{ services_outline }}</em></p>
-
-    <form method="post" id="paymentForm" class="p-4 border rounded bg-white shadow-sm">
+<div class="container mt-5">
+    <h2>Make a Payment</h2>
+    <form method="post">
         <div class="mb-3">
-            <label for="amount" class="form-label">Payment Amount (UGX):</label>
-            <input type="number" step="100" name="amount" id="amount" class="form-control" required>
+            <label for="amount" class="form-label">Amount (UGX)</label>
+            <input type="number" name="amount" class="form-control" id="amount" required>
         </div>
         <div class="mb-3">
-            <label for="purpose" class="form-label">Reason for Payment:</label>
-            <select name="purpose" id="purpose" class="form-control" required>
-                <option value="">Select a Reason</option>
+            <label for="purpose" class="form-label">Purpose</label>
+            <select name="purpose" class="form-select" id="purpose" required>
                 {% for service in services %}
                 <option value="{{ service }}">{{ service }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="mb-3">
-            <label for="mobile_number" class="form-label">Mobile Number:</label>
-            <input type="tel" name="mobile_number" id="mobile_number" class="form-control" placeholder="e.g., 2567XXXXXXXX" required>
+            <label for="mobile_number" class="form-label">Mobile Number</label>
+            <input type="tel" name="mobile_number" class="form-control" id="mobile_number" required>
         </div>
-        <div class="text-center">
-            <button type="submit" class="btn btn-success">Submit Payment</button>
-            <a href="/" class="btn btn-secondary">Cancel</a>
-        </div>
+        <button type="submit" class="btn btn-primary">Submit Payment</button>
     </form>
 </div>
-
-<script>
-    document.getElementById('paymentForm').addEventListener('submit', function(event) {
-        const mobileNumber = document.getElementById('mobile_number').value;
-        const confirmation = confirm(`Proceed with payment for mobile number: ${mobileNumber}?`);
-        if (!confirmation) {
-            event.preventDefault();
-        }
-    });
-</script>
 {% endblock %}
+
+
+
+
 

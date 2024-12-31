@@ -1,0 +1,2 @@
+username,password,email,phone_number,is_admin
+Ssembatya,scrypt:32768:8:1$qL2TXWpC,ssembatyaronald18@gmail.com,"""0754161792""",1

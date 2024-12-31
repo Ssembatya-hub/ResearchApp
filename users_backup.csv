@@ -1,0 +1,2 @@
+id,username,password,email,phone_number,is_admin
+1,Ssembatya,scrypt:32768:8:1$qL2TXWpCdY8uGYc1$0379212a983d5cd609a308cf0dfd334e9ab279c06934548990327e0eaa8a51d02f9b7345264d0f7ecab87be6f2e5287d9b75c57bf1477c1ce7b8cdfdd2d38154,ssembatyaronald18@gmail.com,754161792,1

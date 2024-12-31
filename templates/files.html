@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Your Uploaded Files</h2>
+    <ul class="list-group">
+        {% for file, upload_date in files %}
+        <li class="list-group-item">
+            {{ file }} (Uploaded on: {{ upload_date }})
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}
+
+
