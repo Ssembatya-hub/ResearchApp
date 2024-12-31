@@ -35,6 +35,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
+                <th>Order ID</th>
                 <th>Order Name</th>
                 <th>Service</th>
                 <th>Status</th>
@@ -48,18 +49,25 @@
                 <td>{{ order[1] }}</td>
                 <td>{{ order[2] }}</td>
                 <td>
-                    {% if order[2] == 'draft' %}
-                        <form action="/submit_order/{{ order[3] }}" method="post" style="display:inline;">
-                            <button type="submit" class="btn btn-primary btn-sm">Submit to Admin</button>
-                        </form>
+                    {% if order[3] == 'submitted' %}
+                        <span class="badge bg-success">Submitted</span>
                     {% else %}
-                        <span class="text-success">Submitted</span>
+                        <span class="badge bg-secondary">Draft</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if order[3] != 'submitted' %}
+                    <form action="/submit_order/{{ order[0] }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-primary btn-sm">Submit to Admin</button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted">Already Submitted</span>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
-    </table>
+    </table>    
     
     <h2>Your Schedules</h2>
     <table class="table table-striped">
