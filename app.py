@@ -239,21 +239,26 @@ def admin_orders():
         flash("You do not have permission to view this page.", "danger")
         return redirect(url_for('index'))
 
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    # Fetch all orders along with the usernames of the users who placed them
-    cursor.execute("""
-        SELECT orders.id, users.username, orders.name, orders.service
-        FROM orders
-        INNER JOIN users ON orders.user_id = users.id
-    """)
-    orders = cursor.fetchall()
-    conn.close()
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        # Fetch all orders with usernames
+        cursor.execute("""
+            SELECT orders.id, users.username, orders.name, orders.service
+            FROM orders
+            INNER JOIN users ON orders.user_id = users.id
+        """)
+        orders = cursor.fetchall()
+        conn.close()
 
-    # Debugging: Print fetched orders to the console
-    print("Admin Orders:", orders)
+        # Debugging: Print the fetched orders in the console
+        print("Admin Orders with Usernames:", orders)
 
-    return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
+        return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
+    except Exception as e:
+        print(f"Error fetching admin orders: {e}")
+        flash("An error occurred while fetching orders.", "danger")
+        return redirect(url_for('index'))
 
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
 @login_required
