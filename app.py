@@ -232,12 +232,13 @@ def payment():
         return redirect(url_for('index'))
     return render_template('payment.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
 
-@app.route('/admin/orders', methods=['GET', 'POST'])
+@app.route('/admin/orders', methods=['GET'])
 @login_required
 def admin_orders():
     if not is_admin():
         flash("You do not have permission to view this page.", "danger")
         return redirect(url_for('index'))
+    
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute("""
