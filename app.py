@@ -202,18 +202,26 @@ def place_order():
 @login_required
 def submit_order(order_id):
     try:
+        # Connect to the database
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
+
         # Update the order status to 'submitted'
         cursor.execute("UPDATE orders SET status = 'submitted' WHERE id = ? AND user_id = ?", (order_id, current_user.id))
         conn.commit()
-        conn.close()
-        flash("Order successfully submitted to the admin.", "success")
-    except Exception as e:
-        print(f"Error submitting order: {e}")
-        flash("An error occurred while submitting the order.", "danger")
 
-    return redirect(url_for('index'))
+        # Check if the update was successful
+        if cursor.rowcount > 0:
+            flash("Order successfully submitted to the admin.", "success")
+        else:
+            flash("Order submission failed. Please try again.", "danger")
+    except Exception as e:
+        flash(f"An error occurred: {e}", "danger")
+    finally:
+        conn.close()
+
+    # Redirect back to the user's orders page
+    return redirect(url_for('user_orders'))
 
 @app.route('/schedule', methods=['GET', 'POST'])
 @login_required
@@ -248,34 +256,26 @@ def payment():
         return redirect(url_for('index'))
     return render_template('payment.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
 
-@app.route('/admin/orders', methods=['GET'])
+@app.route('/admin/orders')
 @login_required
 def admin_orders():
-    if not is_admin():
-        flash("You do not have permission to view this page.", "danger")
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        # Fetch orders with status 'submitted'
-        cursor.execute("""
-            SELECT orders.id, users.username, orders.name, orders.service, orders.status
-            FROM orders
-            INNER JOIN users ON orders.user_id = users.id
-            WHERE orders.status = 'submitted'
-        """)
-        orders = cursor.fetchall()
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT orders.id, users.username, orders.name, orders.service, orders.status
+        FROM orders
+        JOIN users ON orders.user_id = users.id
+    """)
+    orders = cursor.fetchall()
+    conn.close()
 
-        # Debugging line to log the fetched orders
-        print("Admin Orders Fetched:", orders)
-
-        conn.close()
-        return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
-    except Exception as e:
-        print(f"Error fetching admin orders: {e}")
-        flash("An error occurred while fetching orders.", "danger")
-        return redirect(url_for('index'))
+    # Debugging log to verify admin orders
+    print("Admin Orders Fetched:", orders)
+    return render_template('admin_orders.html', orders=orders)
 
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
 @login_required
@@ -376,6 +376,19 @@ def view_files():
     files = cursor.fetchall()
     conn.close()
     return render_template('files.html', files=files, company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
+@app.route('/user/orders')
+@login_required
+def user_orders():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    # Fetch all relevant fields
+    cursor.execute("SELECT id, name, service, status FROM orders WHERE user_id = ?", (current_user.id,))
+    orders = cursor.fetchall()
+    conn.close()
+
+    # Debugging to ensure correct data alignment
+    print("User Orders Fetched:", orders)
+    return render_template('user_orders.html', orders=orders)
 
 if __name__ == '__main__':
     app.run(debug=True)

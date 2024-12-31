@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Your Orders</h2>
+    {% if orders %}
+    <table class="table table-striped text-center">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Order Name</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order[0] }}</td> <!-- Order ID -->
+                <td>{{ order[1] }}</td> <!-- Order Name -->
+                <td>{{ order[2] }}</td> <!-- Service -->
+                <td>
+                    {% if order[3] == 'submitted' %}
+                        <span class="badge bg-success">Submitted</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Draft</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if order[3] != 'submitted' %}
+                    <form action="/submit_order/{{ order[0] }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-primary btn-sm">Submit to Admin</button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted">Already Submitted</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-center">No orders found. Start by placing a new order.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+
+
