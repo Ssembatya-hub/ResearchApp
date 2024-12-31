@@ -258,19 +258,19 @@ def admin_orders():
     try:
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
-        # Fetch only submitted orders
+        # Fetch orders with status 'submitted'
         cursor.execute("""
-            SELECT orders.id, users.username, orders.name, orders.service
+            SELECT orders.id, users.username, orders.name, orders.service, orders.status
             FROM orders
             INNER JOIN users ON orders.user_id = users.id
             WHERE orders.status = 'submitted'
         """)
         orders = cursor.fetchall()
+
+        # Debugging line to log the fetched orders
+        print("Admin Orders Fetched:", orders)
+
         conn.close()
-
-        # Debugging: Print the fetched orders in the console
-        print("Admin Submitted Orders:", orders)
-
         return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
     except Exception as e:
         print(f"Error fetching admin orders: {e}")
