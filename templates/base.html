@@ -81,7 +81,7 @@
             text-decoration: underline;
         }
     </style>
-    <title>{{ company_name }}</title>
+    <title>{% block title %}{{ company_name }}{% endblock %}</title>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -92,12 +92,18 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/schedule">Schedule</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/upload">Upload Files</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/files">My Files</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/upload">Upload File</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/files">My Files</a></li>
+                        {% if current_user.is_admin %}
+                            <li class="nav-item"><a class="nav-link" href="/admin/orders">Admin Orders</a></li>
+                        {% endif %}
+                        <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -108,21 +114,19 @@
         <p class="hero-subtitle"><i>{{ services_outline }}</i></p>
     </div>
 
-    <div class="container">
+    <div class="container mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="alert-messages">
+                <div>
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} mt-3" role="alert">
+                        <div class="alert alert-{{ category }} mt-2" role="alert">
                             {{ message }}
                         </div>
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
-        {% block content %}
-        <!-- Page-specific content goes here -->
-        {% endblock %}
+        {% block content %}{% endblock %}
     </div>
 
     <footer>
@@ -132,6 +136,9 @@
     </footer>
 </body>
 </html>
+
+
+
 
 
 
