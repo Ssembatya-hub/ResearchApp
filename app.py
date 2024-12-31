@@ -309,6 +309,35 @@ def upload_file():
             return redirect(url_for('index'))
 
     return render_template('upload.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        # Validate input
+        if password != confirm_password:
+            flash("Passwords do not match!", "danger")
+            return redirect(url_for('register'))
+
+        hashed_password = generate_password_hash(password)
+
+        try:
+            conn = sqlite3.connect('database.db')
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (username, password, is_admin) VALUES (?, ?, 0)",
+                (username, hashed_password)
+            )
+            conn.commit()
+            conn.close()
+            flash("Registration successful! Please log in.", "success")
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            flash("Username already exists. Please choose another.", "danger")
+
+    return render_template('register.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
 
 @app.route('/files')
 @login_required
