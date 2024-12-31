@@ -232,18 +232,27 @@ def payment():
         return redirect(url_for('index'))
     return render_template('payment.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
 
-@app.route('/admin/orders', methods=['GET', 'POST'])
+@app.route('/admin/orders', methods=['GET'])
 @login_required
 def admin_orders():
+    # Check if the current user is an admin
     if not is_admin():
         flash("You do not have permission to view this page.", "danger")
         return redirect(url_for('index'))
+
+    # Fetch all orders for the admin
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, service FROM orders")
+    cursor.execute("""
+        SELECT orders.id, users.username, orders.name, orders.service
+        FROM orders
+        INNER JOIN users ON orders.user_id = users.id
+    """)
     orders = cursor.fetchall()
     conn.close()
-    return render_template('admin_orders.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], orders=orders)
+
+    # Render the admin orders template
+    return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
 
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
 @login_required

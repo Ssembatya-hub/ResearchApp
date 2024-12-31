@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="container mt-5">
     <h2>All Orders</h2>
@@ -6,7 +7,8 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>Name</th>
+                <th>Username</th>
+                <th>Order Name</th>
                 <th>Service</th>
                 <th>Actions</th>
             </tr>
@@ -14,9 +16,10 @@
         <tbody>
             {% for order in orders %}
             <tr>
-                <td>{{ order[0] }}</td>
-                <td>{{ order[1] }}</td>
-                <td>{{ order[2] }}</td>
+                <td>{{ order[0] }}</td> <!-- Order ID -->
+                <td>{{ order[1] }}</td> <!-- Username -->
+                <td>{{ order[2] }}</td> <!-- Order Name -->
+                <td>{{ order[3] }}</td> <!-- Service -->
                 <td>
                     <a href="/order/edit/{{ order[0] }}" class="btn btn-warning btn-sm">Edit</a>
                     <form action="/order/delete/{{ order[0] }}" method="post" style="display:inline;">
@@ -29,6 +32,7 @@
     </table>
 </div>
 {% endblock %}
+
 
 
 
