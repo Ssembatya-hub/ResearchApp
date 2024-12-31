@@ -198,6 +198,22 @@ def place_order():
         flash('Order placed successfully!', 'success')
         return redirect(url_for('index'))
     return render_template('order.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
+@app.route('/submit_order/<int:order_id>', methods=['POST'])
+@login_required
+def submit_order(order_id):
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        # Update the order status to 'submitted'
+        cursor.execute("UPDATE orders SET status = 'submitted' WHERE id = ? AND user_id = ?", (order_id, current_user.id))
+        conn.commit()
+        conn.close()
+        flash("Order successfully submitted to the admin.", "success")
+    except Exception as e:
+        print(f"Error submitting order: {e}")
+        flash("An error occurred while submitting the order.", "danger")
+
+    return redirect(url_for('index'))
 
 @app.route('/schedule', methods=['GET', 'POST'])
 @login_required
@@ -242,17 +258,18 @@ def admin_orders():
     try:
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
-        # Fetch all orders with usernames
+        # Fetch only submitted orders
         cursor.execute("""
             SELECT orders.id, users.username, orders.name, orders.service
             FROM orders
             INNER JOIN users ON orders.user_id = users.id
+            WHERE orders.status = 'submitted'
         """)
         orders = cursor.fetchall()
         conn.close()
 
         # Debugging: Print the fetched orders in the console
-        print("Admin Orders with Usernames:", orders)
+        print("Admin Submitted Orders:", orders)
 
         return render_template('admin_orders.html', orders=orders, company_name=app.config['COMPANY_NAME'])
     except Exception as e:
