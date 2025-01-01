@@ -215,25 +215,27 @@ def place_order():
 @login_required
 def submit_order(order_id):
     try:
-        # Connect to the database
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
 
-        # Update the order status to 'submitted'
-        cursor.execute("UPDATE orders SET status = 'submitted' WHERE id = ? AND user_id = ?", (order_id, current_user.id))
+        # Update the status of the order to 'submitted'
+        cursor.execute("""
+            UPDATE orders 
+            SET status = 'submitted' 
+            WHERE id = ? AND user_id = ?
+        """, (order_id, current_user.id))
         conn.commit()
 
         # Check if the update was successful
         if cursor.rowcount > 0:
             flash("Order successfully submitted to the admin.", "success")
         else:
-            flash("Order submission failed. Please try again.", "danger")
+            flash("Failed to submit order. Please try again.", "danger")
     except Exception as e:
         flash(f"An error occurred: {e}", "danger")
     finally:
         conn.close()
 
-    # Redirect back to the user's orders page
     return redirect(url_for('user_orders'))
 
 @app.route('/schedule', methods=['GET', 'POST'])
@@ -278,16 +280,20 @@ def admin_orders():
 
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
+    
+    # Fetch all submitted orders with user details
     cursor.execute("""
         SELECT orders.id, users.username, orders.name, orders.service, orders.status
         FROM orders
         JOIN users ON orders.user_id = users.id
+        WHERE orders.status = 'submitted'
     """)
     orders = cursor.fetchall()
     conn.close()
 
-    # Debugging log to verify admin orders
-    print("Admin Orders Fetched:", orders)
+    # Debugging: Log fetched orders to console
+    print("Fetched Admin Orders:", orders)
+
     return render_template('admin_orders.html', orders=orders)
 
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
