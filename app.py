@@ -186,18 +186,31 @@ def profile():
 @app.route('/order', methods=['GET', 'POST'])
 @login_required
 def place_order():
-    services = app.config['SERVICES_OUTLINE'].split(", ")
+    services = app.config['SERVICES_OUTLINE'].split(", ")  # Extract services as a list
     if request.method == 'POST':
-        name = request.form['name']
-        service = request.form['service']
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO orders (user_id, name, service) VALUES (?, ?, ?)", (current_user.id, name, service))
-        conn.commit()
-        conn.close()
-        flash('Order placed successfully!', 'success')
-        return redirect(url_for('index'))
+        name = request.form.get('name')
+        service = request.form.get('service')
+
+        try:
+            conn = sqlite3.connect('database.db')
+            cursor = conn.cursor()
+
+            # Insert data into the orders table
+            cursor.execute("""
+                INSERT INTO orders (user_id, name, service)
+                VALUES (?, ?, ?)
+            """, (current_user.id, name, service))
+            conn.commit()
+            conn.close()
+
+            flash("Order placed successfully!", "success")
+            return redirect(url_for('user_orders'))
+        except Exception as e:
+            flash(f"An error occurred: {e}", "danger")
+            return redirect(url_for('order'))
+
     return render_template('order.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
+
 @app.route('/submit_order/<int:order_id>', methods=['POST'])
 @login_required
 def submit_order(order_id):
@@ -381,13 +394,20 @@ def view_files():
 def user_orders():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    # Fetch all relevant fields
-    cursor.execute("SELECT id, name, service, status FROM orders WHERE user_id = ?", (current_user.id,))
+
+    # Fetch orders for the current user
+    cursor.execute("""
+        SELECT id, name, service, status
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY id ASC
+    """, (current_user.id,))
     orders = cursor.fetchall()
     conn.close()
 
-    # Debugging to ensure correct data alignment
-    print("User Orders Fetched:", orders)
+    # Debugging: Print fetched data to verify column alignment
+    print("Fetched Orders:", orders)
+
     return render_template('user_orders.html', orders=orders)
 
 if __name__ == '__main__':

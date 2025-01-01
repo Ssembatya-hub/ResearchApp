@@ -4,7 +4,7 @@
 <div class="container mt-5">
     <h2>Your Orders</h2>
     {% if orders %}
-    <table class="table table-striped text-center">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Order ID</th>
@@ -41,10 +41,11 @@
         </tbody>
     </table>
     {% else %}
-    <p class="text-center">No orders found. Start by placing a new order.</p>
+    <p>No orders found. Start by placing a new order.</p>
     {% endif %}
 </div>
 {% endblock %}
+
 
 
 
