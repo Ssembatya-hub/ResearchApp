@@ -5,6 +5,20 @@
 {% block content %}
 <div class="container mt-5">
     <h2 class="text-center">Register</h2>
+
+    <!-- Display Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div>
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} mt-3" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
     <form method="post" class="p-4 border rounded bg-light shadow-sm">
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
@@ -12,7 +26,11 @@
         </div>
         <div class="mb-3">
             <label for="password" class="form-label">Password</label>
-            <input type="password" name="password" id="password" class="form-control" placeholder="Enter a password" required>
+            <div class="input-group">
+                <input type="password" name="password" id="password" class="form-control" placeholder="Enter a password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}">
+                <button class="btn btn-outline-secondary" type="button" id="togglePassword">Show</button>
+            </div>
+            <small class="text-muted">Password must be at least 8 characters long and include uppercase, lowercase, and numbers.</small>
         </div>
         <div class="mb-3">
             <label for="confirm_password" class="form-label">Confirm Password</label>
@@ -24,7 +42,18 @@
         </div>
     </form>
 </div>
+
+<!-- Password Toggle Script -->
+<script>
+    document.getElementById('togglePassword').addEventListener('click', function () {
+        const passwordField = document.getElementById('password');
+        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordField.setAttribute('type', type);
+        this.textContent = type === 'password' ? 'Show' : 'Hide';
+    });
+</script>
 {% endblock %}
+
 
 
 

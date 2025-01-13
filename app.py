@@ -415,7 +415,12 @@ def user_orders():
     print("Fetched Orders:", orders)
 
     return render_template('user_orders.html', orders=orders)
-
+@app.route('/mtn/callback', methods=['POST'])
+def mtn_callback():
+    data = request.json
+    # Process the callback data here
+    print("Callback data received:", data)
+    return "Received", 200
 if __name__ == '__main__':
     app.run(debug=True)
 
