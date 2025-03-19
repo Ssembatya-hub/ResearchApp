@@ -110,9 +110,9 @@ def allowed_file(filename):
 def index():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT name, service FROM orders WHERE user_id = ?", (current_user.id,))
+    cursor.execute("SELECT id, name, service FROM orders WHERE user_id = ?", (current_user.id,))
     orders = cursor.fetchall()
-    cursor.execute("SELECT name, date FROM schedules WHERE user_id = ?", (current_user.id,))
+    cursor.execute("SELECT id, name, date FROM schedules WHERE user_id = ?", (current_user.id,))
     schedules = cursor.fetchall()
     cursor.execute("SELECT amount, purpose, mobile_number, date FROM payments WHERE user_id = ?", (current_user.id,))
     payments = cursor.fetchall()
@@ -204,7 +204,7 @@ def place_order():
             conn.close()
 
             flash("Order placed successfully!", "success")
-            return redirect(url_for('user_orders'))
+            return redirect(url_for('index'))  # Redirects to the dashboard instead of orders page
         except Exception as e:
             flash(f"An error occurred: {e}", "danger")
             return redirect(url_for('order'))
@@ -261,14 +261,23 @@ def payment():
         amount = request.form['amount']
         purpose = request.form['purpose']
         mobile_number = request.form['mobile_number']
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO payments (user_id, amount, purpose, mobile_number, date) VALUES (?, ?, ?, ?, date('now'))", 
-                       (current_user.id, amount, purpose, mobile_number))
-        conn.commit()
-        conn.close()
-        flash(f"Payment of UGX {amount} for '{purpose}' has been recorded.", 'success')
-        return redirect(url_for('index'))
+
+        try:
+            conn = sqlite3.connect('database.db')
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO payments (user_id, amount, purpose, mobile_number, date, status)
+                VALUES (?, ?, ?, ?, date('now'), 'Pending Verification')
+            """, (current_user.id, amount, purpose, mobile_number))
+            conn.commit()
+            conn.close()
+
+            flash(f"Payment of UGX {amount} recorded! Please wait for verification.", 'success')
+            return redirect(url_for('index'))  # Redirect to dashboard
+        except Exception as e:
+            flash(f"An error occurred: {e}", "danger")
+            return redirect(url_for('payment'))
+
     return render_template('payment.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
 
 @app.route('/admin/orders')
@@ -415,6 +424,168 @@ def user_orders():
     print("Fetched Orders:", orders)
 
     return render_template('user_orders.html', orders=orders)
+@app.route('/schedule/edit/<int:schedule_id>', methods=['GET', 'POST'])
+@login_required
+def edit_schedule(schedule_id):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        name = request.form['name']
+        date = request.form['date']
+
+        cursor.execute("UPDATE schedules SET name = ?, date = ? WHERE id = ? AND user_id = ?",
+                       (name, date, schedule_id, current_user.id))
+        conn.commit()
+        conn.close()
+        flash("Schedule updated successfully!", "success")
+        return redirect(url_for('index'))
+
+    cursor.execute("SELECT name, date FROM schedules WHERE id = ? AND user_id = ?", (schedule_id, current_user.id))
+    schedule = cursor.fetchone()
+    conn.close()
+
+    if not schedule:
+        flash("Schedule not found or you do not have permission to edit it.", "danger")
+        return redirect(url_for('index'))
+
+    return render_template('edit_schedule.html', schedule=schedule)
+@app.route('/payment/edit/<int:payment_id>', methods=['GET', 'POST'])
+@login_required
+def edit_payment(payment_id):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    # Fetch payment details
+    cursor.execute("SELECT id, amount, purpose, mobile_number FROM payments WHERE id = ? AND user_id = ?", 
+                   (payment_id, current_user.id))
+    payment = cursor.fetchone()
+
+    if not payment:
+        flash("Payment not found or you do not have permission to edit it.", "danger")
+        conn.close()
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        amount = request.form['amount']
+        purpose = request.form.get('purpose', '')  # Default to empty string if missing
+        mobile_number = request.form.get('mobile_number', '')  # Default to empty string
+
+        cursor.execute("""
+            UPDATE payments 
+            SET amount = ?, purpose = ?, mobile_number = ? 
+            WHERE id = ? AND user_id = ?
+        """, (amount, purpose, mobile_number, payment_id, current_user.id))
+
+        conn.commit()
+
+        if cursor.rowcount > 0:
+            flash("Payment updated successfully!", "success")
+        else:
+            flash("Payment update failed. Please try again.", "danger")
+
+        conn.close()
+        return redirect(url_for('index'))
+
+    conn.close()
+    return render_template('edit_payment.html', payment=payment)
+
+# Delete a schedule
+@app.route('/schedule/delete/<int:schedule_id>', methods=['POST'])
+@login_required
+def delete_schedule(schedule_id):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    # Ensure only the owner can delete
+    cursor.execute("DELETE FROM schedules WHERE id = ? AND user_id = ?", (schedule_id, current_user.id))
+    conn.commit()
+    conn.close()
+
+    flash("Schedule deleted successfully!", "success")
+    return redirect(url_for('index'))
+
+# Delete a payment
+@app.route('/payment/delete/<int:payment_id>', methods=['POST'])
+@login_required
+def delete_payment(payment_id):
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    # Check if the payment exists before deleting
+    cursor.execute("SELECT id FROM payments WHERE id = ? AND user_id = ?", (payment_id, current_user.id))
+    payment = cursor.fetchone()
+
+    if not payment:
+        flash("Payment not found or you do not have permission to delete it.", "danger")
+        conn.close()
+        return redirect(url_for('index'))
+
+    # Delete the payment
+    cursor.execute("DELETE FROM payments WHERE id = ? AND user_id = ?", (payment_id, current_user.id))
+    conn.commit()
+
+    if cursor.rowcount > 0:
+        flash("Payment deleted successfully!", "success")
+    else:
+        flash("Failed to delete payment. Please try again.", "danger")
+
+    conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/admin/payments')
+@login_required
+def admin_payments():
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    # Fetch pending payments
+    cursor.execute("""
+        SELECT id, user_id, amount, purpose, mobile_number, date, status 
+        FROM payments 
+        WHERE status = 'Pending Verification'
+    """)
+    pending_payments = cursor.fetchall()
+
+    # Fetch confirmed payments
+    cursor.execute("""
+        SELECT id, user_id, amount, purpose, mobile_number, date, status 
+        FROM payments 
+        WHERE status = 'Confirmed'
+    """)
+    confirmed_payments = cursor.fetchall()
+
+    conn.close()
+
+    return render_template('admin_payments.html', pending_payments=pending_payments, confirmed_payments=confirmed_payments)
+
+@app.route('/confirm_payment/<int:payment_id>', methods=['POST'])
+@login_required
+def confirm_payment(payment_id):
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        
+        # Update the payment status to 'Confirmed'
+        cursor.execute("UPDATE payments SET status = 'Confirmed' WHERE id = ?", (payment_id,))
+        conn.commit()
+        conn.close()
+
+        flash("Payment has been confirmed!", "success")
+
+    except Exception as e:
+        flash(f"An error occurred: {e}", "danger")
+
+    return redirect(url_for('admin_payments'))  # Refresh the page after confirming
+
 @app.route('/mtn/callback', methods=['POST'])
 def mtn_callback():
     data = request.json
