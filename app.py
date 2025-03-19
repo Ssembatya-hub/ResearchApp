@@ -290,18 +290,14 @@ def admin_orders():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     
-    # Fetch all submitted orders with user details
+    # Fetch all orders with user details
     cursor.execute("""
         SELECT orders.id, users.username, orders.name, orders.service, orders.status
         FROM orders
         JOIN users ON orders.user_id = users.id
-        WHERE orders.status = 'submitted'
     """)
     orders = cursor.fetchall()
     conn.close()
-
-    # Debugging: Log fetched orders to console
-    print("Fetched Admin Orders:", orders)
 
     return render_template('admin_orders.html', orders=orders)
 
@@ -532,6 +528,26 @@ def delete_payment(payment_id):
 
     conn.close()
     return redirect(url_for('index'))
+@app.route('/admin/schedules')
+@login_required
+def admin_schedules():
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    
+    # Fetch all schedules with user details
+    cursor.execute("""
+        SELECT schedules.id, users.username, schedules.name, schedules.date
+        FROM schedules
+        JOIN users ON schedules.user_id = users.id
+    """)
+    schedules = cursor.fetchall()
+    conn.close()
+
+    return render_template('admin_schedules.html', schedules=schedules)
 
 @app.route('/admin/payments')
 @login_required
@@ -542,26 +558,18 @@ def admin_payments():
 
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-
-    # Fetch pending payments
+    
+    # Fetch all payments including both pending and verified
     cursor.execute("""
-        SELECT id, user_id, amount, purpose, mobile_number, date, status 
+        SELECT payments.id, users.username, payments.amount, payments.purpose, payments.mobile_number, payments.date, payments.status 
         FROM payments 
-        WHERE status = 'Pending Verification'
+        JOIN users ON payments.user_id = users.id
+        ORDER BY payments.status ASC, payments.date DESC
     """)
-    pending_payments = cursor.fetchall()
-
-    # Fetch confirmed payments
-    cursor.execute("""
-        SELECT id, user_id, amount, purpose, mobile_number, date, status 
-        FROM payments 
-        WHERE status = 'Confirmed'
-    """)
-    confirmed_payments = cursor.fetchall()
-
+    payments = cursor.fetchall()
     conn.close()
 
-    return render_template('admin_payments.html', pending_payments=pending_payments, confirmed_payments=confirmed_payments)
+    return render_template('admin_payments.html', payments=payments)
 
 @app.route('/confirm_payment/<int:payment_id>', methods=['POST'])
 @login_required

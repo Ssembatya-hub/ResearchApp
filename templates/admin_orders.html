@@ -1,25 +1,27 @@
 {% extends "base.html" %}
 
+{% block title %}Admin Orders{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2>Submitted Orders</h2>
+<div class="container">
+    <h1 class="text-center mb-4">All User Orders</h1>
+
     {% if orders %}
     <table class="table table-striped">
         <thead>
             <tr>
                 <th>Order ID</th>
-                <th>Username</th>
+                <th>User</th>
                 <th>Order Name</th>
                 <th>Service</th>
                 <th>Status</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for order in orders %}
             <tr>
                 <td>{{ order[0] }}</td>
-                <td>{{ order[1] }}</td>
+                <td>{{ order[1] }}</td>  <!-- Username -->
                 <td>{{ order[2] }}</td>
                 <td>{{ order[3] }}</td>
                 <td>
@@ -29,18 +31,12 @@
                         <span class="badge bg-secondary">Draft</span>
                     {% endif %}
                 </td>
-                <td>
-                    <a href="/order/edit/{{ order[0] }}" class="btn btn-warning btn-sm">Edit</a>
-                    <form action="/order/delete/{{ order[0] }}" method="post" style="display:inline;">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                    </form>
-                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <p class="text-center">No submitted orders found.</p>
+    <p>No orders found.</p>
     {% endif %}
 </div>
 {% endblock %}

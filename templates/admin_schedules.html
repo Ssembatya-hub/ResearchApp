@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Schedules{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-4">All Scheduled Trainings</h1>
+
+    {% if schedules %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Schedule ID</th>
+                <th>User</th>
+                <th>Training</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in schedules %}
+            <tr>
+                <td>{{ schedule[0] }}</td>
+                <td>{{ schedule[1] }}</td>  <!-- Username -->
+                <td>{{ schedule[2] }}</td>
+                <td>{{ schedule[3] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No scheduled trainings found.</p>
+    {% endif %}
+</div>
+{% endblock %}
