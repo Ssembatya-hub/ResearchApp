@@ -91,6 +91,9 @@
 {% if current_user.is_admin %}
     <a href="/admin/payments" class="btn btn-warning mx-2">Manage Payments</a>
 {% endif %}
+{% if current_user.is_admin %}
+    <a href="/admin/schedules" class="btn btn-warning mx-2">View All Schedules</a>
+{% endif %}
 
 </div>
 {% endblock %}
