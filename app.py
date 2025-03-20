@@ -186,7 +186,7 @@ def profile():
 @app.route('/order', methods=['GET', 'POST'])
 @login_required
 def place_order():
-    services = app.config['SERVICES_OUTLINE'].split(", ")  # Extract services as a list
+    services = app.config['SERVICES_OUTLINE'].split(", ")
     if request.method == 'POST':
         name = request.form.get('name')
         service = request.form.get('service')
@@ -195,16 +195,16 @@ def place_order():
             conn = sqlite3.connect('database.db')
             cursor = conn.cursor()
 
-            # Insert data into the orders table
+            # Insert data into the orders table and keep it permanently
             cursor.execute("""
-                INSERT INTO orders (user_id, name, service)
-                VALUES (?, ?, ?)
+                INSERT INTO orders (user_id, name, service, status)
+                VALUES (?, ?, ?, 'submitted')
             """, (current_user.id, name, service))
             conn.commit()
             conn.close()
 
-            flash("Order placed successfully!", "success")
-            return redirect(url_for('index'))  # Redirects to the dashboard instead of orders page
+            flash("Order placed successfully and saved permanently!", "success")
+            return redirect(url_for('index'))
         except Exception as e:
             flash(f"An error occurred: {e}", "danger")
             return redirect(url_for('order'))
@@ -272,8 +272,8 @@ def payment():
             conn.commit()
             conn.close()
 
-            flash(f"Payment of UGX {amount} recorded! Please wait for verification.", 'success')
-            return redirect(url_for('index'))  # Redirect to dashboard
+            flash("Payment recorded and saved permanently!", "success")
+            return redirect(url_for('index'))
         except Exception as e:
             flash(f"An error occurred: {e}", "danger")
             return redirect(url_for('payment'))
@@ -290,11 +290,9 @@ def admin_orders():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     
-    # Fetch all orders with user details
+    # Fetch all orders regardless of user session
     cursor.execute("""
-        SELECT orders.id, users.username, orders.name, orders.service, orders.status
-        FROM orders
-        JOIN users ON orders.user_id = users.id
+        SELECT id, user_id, name, service, status FROM orders
     """)
     orders = cursor.fetchall()
     conn.close()
@@ -559,12 +557,9 @@ def admin_payments():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     
-    # Fetch all payments including both pending and verified
+    # Fetch all payments regardless of user session
     cursor.execute("""
-        SELECT payments.id, users.username, payments.amount, payments.purpose, payments.mobile_number, payments.date, payments.status 
-        FROM payments 
-        JOIN users ON payments.user_id = users.id
-        ORDER BY payments.status ASC, payments.date DESC
+        SELECT id, user_id, amount, purpose, mobile_number, date, status FROM payments
     """)
     payments = cursor.fetchall()
     conn.close()
