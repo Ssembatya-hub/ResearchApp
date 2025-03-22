@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Upload File for User{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Admin: Upload File for a Specific User</h2>
+    <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="user_id" class="form-label">Select User</label>
+            <select name="user_id" class="form-select" required>
+                {% for user in users %}
+                <option value="{{ user[0] }}">{{ user[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="file" class="form-label">Select File</label>
+            <input type="file" name="file" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload File</button>
+    </form>
+</div>
+{% endblock %}

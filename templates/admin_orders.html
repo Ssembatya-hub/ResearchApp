@@ -1,45 +1,119 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Orders{% endblock %}
+{% block title %}Manage Orders & Payments{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1 class="text-center mb-4">All User Orders</h1>
+    <h1 class="text-center mb-4">Admin Panel - Manage Orders & Payments</h1>
 
+    <!-- Orders Pending Approval -->
+    <h2>Submitted Orders</h2>
     {% if orders %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Name</th>
+                    <th>Service</th>
+                    <th>Schedule Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order[0] }}</td> <!-- Order ID -->
+                    <td>{{ order[1] }}</td> <!-- Username -->
+                    <td>{{ order[2] }}</td> <!-- Phone -->
+                    <td>{{ order[3] }}</td> <!-- Name -->
+                    <td>{{ order[4] }}</td> <!-- Service -->
+                    <td>{{ order[5] }}</td> <!-- Schedule Date -->
+                    <td>
+                        {% if order[6] == 'submitted' %}
+                            <span class="badge bg-warning">Pending</span>
+                        {% elif order[6] == 'Verified' %}
+                            <span class="badge bg-success">Verified</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ order[6] }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order[6] == 'submitted' %}
+                            <form action="{{ url_for('verify_order', order_id=order[0]) }}" method="post">
+                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Verify this order?');">Verify</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">No action needed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted">No submitted orders to verify.</p>
+    {% endif %}
+
+    <!-- Payments Pending Verification -->
+    <!-- Payments Pending Verification -->
+<h2>Payments Pending Verification</h2>
+{% if payments %}
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Order ID</th>
                 <th>User</th>
-                <th>Order Name</th>
-                <th>Service</th>
+                <th>Amount (UGX)</th>
+                <th>Purpose</th>
+                <th>Mobile Number</th>
+                <th>Date</th>
                 <th>Status</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
-            {% for order in orders %}
+            {% for payment in payments %}
             <tr>
-                <td>{{ order[0] }}</td>
-                <td>{{ order[1] }}</td>  <!-- Username -->
-                <td>{{ order[2] }}</td>
-                <td>{{ order[3] }}</td>
+                <td>{{ payment[1] }}</td> <!-- Username -->
+                <td>{{ payment[2] }}</td> <!-- Amount -->
+                <td>{{ payment[3] }}</td> <!-- Purpose -->
+                <td>{{ payment[4] }}</td> <!-- Mobile Number -->
+                <td>{{ payment[5] }}</td> <!-- Date -->
                 <td>
-                    {% if order[4] == 'submitted' %}
-                        <span class="badge bg-success">Submitted</span>
+                    {% if payment[6] == 'Pending Verification' %}
+                        <span class="badge bg-warning">Pending</span>
+                    {% elif payment[6] == 'Confirmed' %}
+                        <span class="badge bg-success">Verified</span>
                     {% else %}
-                        <span class="badge bg-secondary">Draft</span>
+                        <span class="badge bg-secondary">{{ payment[6] }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if payment[6] == 'Pending Verification' %}
+                        <form action="{{ url_for('confirm_payment', payment_id=payment[0]) }}" method="post">
+                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Confirm this payment?');">Verify</button>
+                        </form>
+                    {% else %}
+                        <span class="text-muted">No action needed</span>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% else %}
-    <p>No orders found.</p>
-    {% endif %}
+{% else %}
+    <p class="text-muted">No payments pending verification.</p>
+{% endif %}
 </div>
 {% endblock %}
+
+
+
+
+
+
 
 
 
