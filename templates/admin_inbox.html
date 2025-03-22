@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Admin Inbox{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Inbox: Messages from Users</h2>
+    {% if inbox %}
+    <ul class="list-group">
+        {% for msg in inbox %}
+        <li class="list-group-item">
+            <strong>From:</strong> {{ msg[1] }}<br>
+            <strong>Message:</strong> {{ msg[2] }}<br>
+            <small class="text-muted">Sent at {{ msg[3] }}</small>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No messages received from users yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

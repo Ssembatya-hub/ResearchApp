@@ -97,9 +97,19 @@
                         <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
                         <li class="nav-item"><a class="nav-link" href="/upload">Upload File</a></li>
                         <li class="nav-item"><a class="nav-link" href="/files">My Files</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/send-message">Send Message</a></li>
+                        
                         {% if current_user.is_admin %}
                             <li class="nav-item"><a class="nav-link" href="/admin/orders">Admin Orders</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/admin/message">Send Message</a></li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="/messages">
+                                    Messages {% if unread_count > 0 %}<span class="badge bg-danger">{{ unread_count }}</span>{% endif %}
+                                </a>
+                            </li>
                         {% endif %}
+
                         <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
                     {% else %}
                         <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
@@ -139,9 +149,10 @@
         </p>
         <p class="mb-0"><strong>Location:</strong> MAKERERE KIKONI</p>
     </footer>       
-    
+
 </body>
 </html>
+
 
 
 

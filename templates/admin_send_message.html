@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Send Message{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center mb-4">Send Message to a User</h2>
+
+    <form method="POST">
+        <div class="mb-3">
+            <label for="recipient_id" class="form-label">Select User</label>
+            <select class="form-select" id="recipient_id" name="recipient_id" required>
+                <option value="">-- Choose a user --</option>
+                {% for user in users %}
+                    <option value="{{ user[0] }}">{{ user[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="message" class="form-label">Message</label>
+            <textarea class="form-control" id="message" name="message" rows="4" required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Send Message</button>
+    </form>
+</div>
+{% endblock %}

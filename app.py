@@ -70,6 +70,19 @@ def init_db():
         )
     ''')
     cursor.execute('''
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        recipient_id INTEGER,
+        content TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_read INTEGER DEFAULT 0,
+        FOREIGN KEY(sender_id) REFERENCES users(id),
+        FOREIGN KEY(recipient_id) REFERENCES users(id)
+    )
+''')
+
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -694,6 +707,141 @@ def admin_upload_file():
 
     conn.close()
     return render_template('admin_upload.html', users=users)
+@app.route('/admin/message', methods=['GET', 'POST'])
+@login_required
+def admin_message():
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        recipient_id = request.form['recipient_id']
+        message = request.form['message']
+
+        cursor.execute("INSERT INTO messages (sender_id, recipient_id, message) VALUES (?, ?, ?)",
+                       (current_user.id, recipient_id, message))
+        conn.commit()
+        conn.close()
+        flash("Message sent successfully!", "success")
+        return redirect(url_for('admin_message'))
+
+    cursor.execute("SELECT id, username FROM users WHERE is_admin = 0")
+    users = cursor.fetchall()
+    conn.close()
+    return render_template('admin_send_message.html', users=users)
+
+@app.route('/messages')
+@login_required
+def messages():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    # Get messages sent to the current user (from admin or others)
+    cursor.execute("""
+        SELECT messages.id, messages.message, messages.timestamp, users.username
+        FROM messages
+        JOIN users ON messages.sender_id = users.id
+        WHERE messages.recipient_id = ?
+        ORDER BY messages.timestamp DESC
+    """, (current_user.id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Convert to dictionary-style list for clarity in Jinja
+    user_messages = [
+        {'id': row[0], 'message': row[1], 'timestamp': row[2], 'sender': row[3]}
+        for row in rows
+    ]
+
+    return render_template('messages.html', messages=user_messages)
+
+@app.context_processor
+def inject_unread_message_count():
+    if current_user.is_authenticated and not current_user.is_admin:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM messages
+            WHERE recipient_id = ? AND status = 'unread'
+        """, (current_user.id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return dict(unread_count=count)
+    return dict(unread_count=0)
+@app.route('/reply/<int:message_id>', methods=['POST'])
+@login_required
+def reply_message(message_id):
+    content = request.form.get('message')
+
+    if not content:
+        flash("Message cannot be empty.", "danger")
+        return redirect(url_for('messages'))
+
+    # Assume admin has ID = 1
+    admin_id = 1
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO messages (sender_id, recipient_id, subject, message, timestamp, status)
+        VALUES (?, ?, ?, ?, datetime('now'), 'unread')
+    """, (current_user.id, admin_id, f"Reply to message {message_id}", content))
+    conn.commit()
+    conn.close()
+
+    flash("Reply sent to admin!", "success")
+    return redirect(url_for('messages'))
+
+@app.route('/admin/inbox')
+@login_required
+def admin_inbox():
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT messages.id, users.username, messages.message, messages.timestamp
+        FROM messages
+        JOIN users ON messages.sender_id = users.id
+        WHERE messages.recipient_id = ?
+        ORDER BY messages.timestamp DESC
+    """, (current_user.id,))
+    inbox = cursor.fetchall()
+    conn.close()
+
+    return render_template('admin_inbox.html', inbox=inbox)
+
+@app.route('/send-message', methods=['GET', 'POST'])
+@login_required
+def send_message():
+    if request.method == 'POST':
+        subject = request.form.get('subject')
+        content = request.form.get('message')
+
+        if not subject or not content:
+            flash("Subject and message are required.", "danger")
+            return redirect(url_for('send_message'))
+
+        admin_id = 1  # assuming admin has ID 1
+
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO messages (sender_id, recipient_id, subject, message, timestamp, status)
+            VALUES (?, ?, ?, ?, datetime('now'), 'unread')
+        """, (current_user.id, admin_id, subject, content))
+        conn.commit()
+        conn.close()
+
+        flash("Message sent to admin!", "success")
+        return redirect(url_for('messages'))
+
+    return render_template('send_message.html')
 
 @app.route('/mtn/callback', methods=['POST'])
 def mtn_callback():
