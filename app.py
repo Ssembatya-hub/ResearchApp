@@ -953,7 +953,6 @@ def test_image():
         <img src="/static/images/stamp.png" width="200">
     '''
 @app.route('/fix-passwords')
-@login_required
 def fix_passwords():
     if not current_user.is_authenticated or not current_user.is_admin:
         return "Access Denied", 403
