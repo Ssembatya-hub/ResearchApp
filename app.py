@@ -952,6 +952,28 @@ def test_image():
         <h3>Stamp test</h3>
         <img src="/static/images/stamp.png" width="200">
     '''
+@app.route('/fix-passwords')
+def fix_passwords():
+    from werkzeug.security import generate_password_hash
+    import sqlite3
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id, password FROM users")
+    users = cursor.fetchall()
+
+    count = 0
+    for user_id, password in users:
+        if not password.startswith('pbkdf2:sha256'):
+            hashed = generate_password_hash(password)
+            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
+            count += 1
+
+    conn.commit()
+    conn.close()
+
+    return f"{count} user password(s) updated."
 
 @app.route('/mtn/callback', methods=['POST'])
 def mtn_callback():
