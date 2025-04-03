@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, current_app
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import sqlite3
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -176,38 +177,50 @@ def logout():
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
     if request.method == 'POST':
         email = request.form.get('email')
         phone_number = request.form.get('phone_number')
-        password = request.form.get('password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
 
-        if not email or not phone_number or not password:
-            flash("All fields are required!", "danger")
+        if not email or not phone_number:
+            flash("Email and phone number are required!", "danger")
             return redirect(url_for('profile'))
 
-        hashed_password = generate_password_hash(password)
+        update_query = "UPDATE users SET email = ?, phone_number = ?"
+        params = [email, phone_number]
+
+        if new_password:
+            if new_password != confirm_password:
+                flash("Passwords do not match!", "danger")
+                conn.close()
+                return redirect(url_for('profile'))
+            hashed_password = generate_password_hash(new_password)
+            update_query += ", password = ?"
+            params.append(hashed_password)
+
+        update_query += " WHERE id = ?"
+        params.append(current_user.id)
 
         try:
-            conn = sqlite3.connect('database.db')
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE users SET email = ?, phone_number = ?, password = ? WHERE id = ?",
-                (email, phone_number, hashed_password, current_user.id)
-            )
+            cursor.execute(update_query, tuple(params))
             conn.commit()
-            conn.close()
             flash("Profile updated successfully!", "success")
         except Exception as e:
             flash(f"An error occurred: {e}", "danger")
-            return redirect(url_for('profile'))
 
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
+        conn.close()
+        return redirect(url_for('profile'))
+
+    # GET: load existing profile data
     cursor.execute("SELECT email, phone_number FROM users WHERE id = ?", (current_user.id,))
     profile_data = cursor.fetchone()
     conn.close()
 
-    return render_template('profile.html', profile_data=profile_data)
+    return render_template('profile.html', profile_data=profile_data, company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
 
 @app.route('/order', methods=['GET', 'POST'])
 @login_required
@@ -608,11 +621,12 @@ def confirm_payment(payment_id):
         flash(f"An error occurred: {e}", "danger")
 
     return redirect(url_for('admin_payments'))
-
 from flask import send_file
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 from io import BytesIO
+import os
 
 @app.route('/receipt/<int:payment_id>')
 @login_required
@@ -632,32 +646,51 @@ def generate_receipt(payment_id):
         flash("Payment not found or access denied.", "danger")
         return redirect(url_for('index'))
 
-    # Create PDF in memory
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
-    # Content
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(100, 800, "SSEMBATYA RESEARCH SOLUTIONS")
+    # Paths
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'logo.png')
+    stamp_path = os.path.join(current_app.root_path, 'static', 'images', 'stamp.png')
+
+
+    # --- Top Logo + Company Name ---
+    if os.path.exists(logo_path):
+        logo = ImageReader(logo_path)
+        pdf.drawImage(logo, 40, height - 90, width=50, height=50, mask='auto')
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(100, height - 70, "SSEMBATYA RESEARCH SOLUTIONS")
+    else:
+        pdf.setFont("Helvetica-Bold", 18)
+        pdf.drawString(100, height - 70, "SSEMBATYA RESEARCH SOLUTIONS")
+
+    # --- Title ---
     pdf.setFont("Helvetica", 12)
-    pdf.drawString(100, 780, "Payment Receipt")
+    pdf.drawString(100, height - 100, "Payment Receipt")
+    pdf.line(100, height - 102, 500, height - 102)
 
-    pdf.line(100, 775, 500, 775)
+    # --- Payment Info ---
+    pdf.drawString(100, height - 130, f"Username: {payment[5]}")
+    pdf.drawString(100, height - 150, f"Amount: UGX {payment[0]:,.0f}")
+    pdf.drawString(100, height - 170, f"Purpose: {payment[1]}")
+    pdf.drawString(100, height - 190, f"Mobile Number: {payment[2]}")
+    pdf.drawString(100, height - 210, f"Date: {payment[3]}")
+    pdf.drawString(100, height - 230, f"Status: {payment[4]}")
 
-    pdf.drawString(100, 750, f"Username: {payment[5]}")
-    pdf.drawString(100, 730, f"Amount: UGX {payment[0]:,.0f}")
-    pdf.drawString(100, 710, f"Purpose: {payment[1]}")
-    pdf.drawString(100, 690, f"Mobile Number: {payment[2]}")
-    pdf.drawString(100, 670, f"Date: {payment[3]}")
-    pdf.drawString(100, 650, f"Status: {payment[4]}")
+    # --- Thank You + Stamp ---
+    pdf.drawString(100, height - 270, "Thank you for your payment!")
 
-    pdf.drawString(100, 620, "Thank you for your payment!")
+    if os.path.exists(stamp_path):
+        stamp = ImageReader(stamp_path)
+        pdf.drawImage(stamp, 330, height - 310, width=120, height=60, mask='auto')
 
     pdf.showPage()
     pdf.save()
-
     buffer.seek(0)
+
     return send_file(buffer, as_attachment=True, download_name=f"receipt_{payment_id}.pdf", mimetype='application/pdf')
+
 @app.route('/admin/files')
 @login_required
 def admin_files():
@@ -732,31 +765,56 @@ def admin_message():
     users = cursor.fetchall()
     conn.close()
     return render_template('admin_send_message.html', users=users)
+@app.route('/admin/messages')
+@login_required
+def admin_messages():
+    if not current_user.is_admin:
+        flash("Access denied", "danger")
+        return redirect(url_for('index'))
 
-@app.route('/messages')
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT messages.id, messages.sender_id, messages.recipient_id, messages.message, messages.timestamp, 
+               users.username 
+        FROM messages 
+        JOIN users ON messages.sender_id = users.id OR messages.recipient_id = users.id
+        WHERE sender_id = ? OR recipient_id = ?
+        ORDER BY messages.timestamp ASC
+    """, (current_user.id, current_user.id))
+    messages = cursor.fetchall()
+    conn.close()
+
+    return render_template('admin_chat.html', messages=messages)
+
+@app.route('/messages', methods=['GET', 'POST'])
 @login_required
 def messages():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
 
-    # Get messages sent to the current user (from admin or others)
+    # Send a message to admin
+    if request.method == 'POST':
+        message = request.form['message']
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(
+            "INSERT INTO messages (sender_id, recipient_id, message, timestamp) VALUES (?, ?, ?, ?)",
+            (current_user.id, 1, message, timestamp)
+        )
+        conn.commit()
+
+    # Fetch all messages between user and admin (ID = 1)
     cursor.execute("""
-        SELECT messages.id, messages.message, messages.timestamp, users.username
+        SELECT messages.sender_id, messages.message, messages.timestamp, users.username
         FROM messages
         JOIN users ON messages.sender_id = users.id
-        WHERE messages.recipient_id = ?
-        ORDER BY messages.timestamp DESC
-    """, (current_user.id,))
-    rows = cursor.fetchall()
+        WHERE (sender_id = ? AND recipient_id = 1) OR (sender_id = 1 AND recipient_id = ?)
+        ORDER BY messages.timestamp ASC
+    """, (current_user.id, current_user.id))
+    messages = cursor.fetchall()
     conn.close()
 
-    # Convert to dictionary-style list for clarity in Jinja
-    user_messages = [
-        {'id': row[0], 'message': row[1], 'timestamp': row[2], 'sender': row[3]}
-        for row in rows
-    ]
-
-    return render_template('messages.html', messages=user_messages)
+    return render_template('messages.html', messages=messages)
 
 @app.context_processor
 def inject_unread_message_count():
@@ -842,6 +900,82 @@ def send_message():
         return redirect(url_for('messages'))
 
     return render_template('send_message.html')
+@app.route('/send_message_to_admin', methods=['POST'])
+@login_required
+def send_message_to_admin():
+    message = request.form.get('message')
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+
+    # Find admin ID (assuming there's only one admin)
+    cursor.execute("SELECT id FROM users WHERE is_admin = 1 LIMIT 1")
+    admin = cursor.fetchone()
+    if admin:
+        admin_id = admin[0]
+        cursor.execute("""
+            INSERT INTO messages (sender_id, recipient_id, message, timestamp, status)
+            VALUES (?, ?, ?, ?, 'unread')
+        """, (current_user.id, admin_id, message, timestamp))
+        conn.commit()
+    conn.close()
+
+    flash("Message sent!", "success")
+    return redirect(url_for('messages'))
+
+@app.route('/send_user_message', methods=['POST'])
+@login_required
+def send_user_message():
+    message = request.form.get('message')
+
+    if message:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        # Send to admin (assumed to have id = 1)
+        cursor.execute("""
+            INSERT INTO messages (sender_id, recipient_id, message, timestamp)
+            VALUES (?, ?, ?, datetime('now'))
+        """, (current_user.id, 1, message))
+        conn.commit()
+        conn.close()
+        flash("Message sent to admin.", "success")
+    else:
+        flash("Message cannot be empty.", "danger")
+
+    return redirect(url_for('messages'))
+@app.route('/test-image')
+def test_image():
+    return '''
+        <h3>Logo test</h3>
+        <img src="/static/images/logo.png" width="200">
+        <h3>Stamp test</h3>
+        <img src="/static/images/stamp.png" width="200">
+    '''
+@app.route('/fix-passwords')
+@login_required
+def fix_passwords():
+    if not current_user.is_authenticated or not current_user.is_admin:
+        return "Access Denied", 403
+
+    import sqlite3
+    from werkzeug.security import generate_password_hash
+
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, password FROM users")
+    users = cursor.fetchall()
+
+    fixed = 0
+    for uid, pwd in users:
+        if not pwd.startswith("pbkdf2:sha256"):
+            hashed = generate_password_hash(pwd)
+            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, uid))
+            fixed += 1
+
+    conn.commit()
+    conn.close()
+    return f"{fixed} user password(s) updated."
 
 @app.route('/mtn/callback', methods=['POST'])
 def mtn_callback():
