@@ -1,30 +1,53 @@
 {% extends "base.html" %}
-{% block title %}My Messages{% endblock %}
+{% block title %}Messages{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Your Messages</h2>
-    {% if messages %}
-    <ul class="list-group">
-        {% for message in messages %}
-        <li class="list-group-item">
-            <strong>From {{ message.sender }}:</strong> {{ message.message }}<br>
-            <small class="text-muted">Sent at {{ message.timestamp }}</small>
+    <h2 class="mb-3">Conversation</h2>
 
-            <!-- Reply Form -->
-            <form action="{{ url_for('reply_message', message_id=message.id) }}" method="POST" class="mt-3">
-                <input type="hidden" name="subject" value="Re: Admin Message">
-                <div class="mb-2">
-                    <textarea name="message" class="form-control" rows="2" placeholder="Type your reply..." required></textarea>
+    <!-- Chat box -->
+    <div class="bg-light p-3 rounded" id="chatBox" style="height: 400px; overflow-y: scroll;">
+        {% for msg in messages %}
+            {% if msg[2] == current_user.id %}
+                <!-- Message from current user -->
+                <div class="text-end mb-3">
+                    <div class="d-inline-block p-2 bg-primary text-white rounded-3">
+                        {{ msg[0] }}
+                    </div><br>
+                    <small class="text-muted">{{ msg[3] }} • {{ msg[1] }}</small>
                 </div>
-                <button type="submit" class="btn btn-sm btn-primary">Reply</button>
-            </form>
-        </li>
+            {% else %}
+                <!-- Message from the other person (e.g., admin) -->
+                <div class="text-start mb-3">
+                    <div class="d-inline-block p-2 bg-secondary text-white rounded-3">
+                        {{ msg[0] }}
+                    </div><br>
+                    <small class="text-muted">{{ msg[3] }} • {{ msg[1] }}</small>
+                </div>
+            {% endif %}
         {% endfor %}
-    </ul>
-    {% else %}
-    <p>No messages yet.</p>
-    {% endif %}
+    </div>
+
+    <!-- Send new message -->
+    <form method="POST" class="mt-3">
+        <div class="mb-2">
+            <textarea name="message" class="form-control" rows="2" placeholder="Type your message..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Send</button>
+    </form>
 </div>
+
+<!-- Scroll to bottom script -->
+<script>
+    const chatBox = document.getElementById('chatBox');
+    if (chatBox) {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
 {% endblock %}
+
+
+
+
+
 

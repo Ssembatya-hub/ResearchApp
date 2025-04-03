@@ -97,11 +97,10 @@
                         <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
                         <li class="nav-item"><a class="nav-link" href="/upload">Upload File</a></li>
                         <li class="nav-item"><a class="nav-link" href="/files">My Files</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/send-message">Send Message</a></li>
-                        
+
                         {% if current_user.is_admin %}
                             <li class="nav-item"><a class="nav-link" href="/admin/orders">Admin Orders</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/admin/message">Send Message</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/admin/messages">Messages</a></li>
                         {% else %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/messages">
@@ -120,7 +119,9 @@
         </div>
     </nav>
 
+    <!-- Hero Section with Logo -->
     <div class="hero-section">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="img-fluid mb-3" style="max-width: 200px;">
         <h1 class="hero-title">{{ company_name }}</h1>
         <p class="hero-subtitle"><i>{{ services_outline }}</i></p>
     </div>
@@ -140,7 +141,13 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Logo above footer -->
+    <div class="text-center mt-5">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="img-fluid" style="max-width: 120px;">
+    </div>
+
     <footer class="text-center py-4" style="background-color: #343a40; color: #f8f9fa; margin-top: 40px;">
+        
         <p class="mb-1">© 2025 <strong>SSEMBATYA RESEARCH SOLUTIONS</strong>. All rights reserved.</p>
         <p class="mb-1">
             <strong>Contact Us:</strong>
@@ -148,10 +155,13 @@
             <a href="tel:+256754161792" style="color: #17a2b8;">+256 754161792</a>
         </p>
         <p class="mb-0"><strong>Location:</strong> MAKERERE KIKONI</p>
-    </footer>       
-
+    </footer>
+    
 </body>
 </html>
+
+
+
 
 
 

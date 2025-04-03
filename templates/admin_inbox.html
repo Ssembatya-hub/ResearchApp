@@ -2,19 +2,29 @@
 {% block title %}Admin Inbox{% endblock %}
 {% block content %}
 <div class="container mt-4">
-    <h2>Inbox: Messages from Users</h2>
-    {% if inbox %}
-    <ul class="list-group">
-        {% for msg in inbox %}
-        <li class="list-group-item">
-            <strong>From:</strong> {{ msg[1] }}<br>
-            <strong>Message:</strong> {{ msg[2] }}<br>
-            <small class="text-muted">Sent at {{ msg[3] }}</small>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p>No messages received from users yet.</p>
-    {% endif %}
+    <h2>Messages</h2>
+
+    <div class="chat-box" style="max-height: 500px; overflow-y: auto; background-color: #f8f9fa; padding: 20px; border-radius: 10px;">
+        {% if inbox %}
+            {% for msg in inbox %}
+                <div class="mb-3 p-2 rounded {% if msg[0] == current_user.id %}bg-primary text-white text-end{% else %}bg-light text-dark text-start{% endif %}" style="max-width: 70%; {% if msg[0] == current_user.id %}margin-left: auto;{% else %}margin-right: auto;{% endif %}">
+                    <div><strong>{% if msg[0] == current_user.id %}You{% else %}{{ msg[1] }}{% endif %}</strong></div>
+                    <div>{{ msg[2] }}</div>
+                    <div><small class="text-muted">{{ msg[3] }}</small></div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No messages exchanged yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Reply Form -->
+    <form method="POST" class="mt-4">
+        <div class="mb-3">
+            <textarea name="message" class="form-control" rows="3" placeholder="Type your reply..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send Reply</button>
+    </form>
 </div>
 {% endblock %}
+
