@@ -952,29 +952,6 @@ def test_image():
         <h3>Stamp test</h3>
         <img src="/static/images/stamp.png" width="200">
     '''
-@app.route('/fix-passwords')
-def fix_passwords():
-    if not current_user.is_authenticated or not current_user.is_admin:
-        return "Access Denied", 403
-
-    import sqlite3
-    from werkzeug.security import generate_password_hash
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, password FROM users")
-    users = cursor.fetchall()
-
-    fixed = 0
-    for uid, pwd in users:
-        if not pwd.startswith("pbkdf2:sha256"):
-            hashed = generate_password_hash(pwd)
-            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, uid))
-            fixed += 1
-
-    conn.commit()
-    conn.close()
-    return f"{fixed} user password(s) updated."
 
 @app.route('/mtn/callback', methods=['POST'])
 def mtn_callback():
