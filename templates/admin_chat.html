@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Admin Messages{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Messages</h2>
+
+    <div class="card" style="max-height: 500px; overflow-y: auto;">
+        <div class="card-body">
+            {% for msg in messages %}
+                <div class="mb-3">
+                    {% if msg[1] == current_user.id %} {# Sent by admin #}
+                        <div class="text-end">
+                            <span class="badge bg-primary">You</span><br>
+                            <div class="bg-light text-dark d-inline-block p-2 rounded">
+                                {{ msg[3] }}
+                            </div><br>
+                            <small class="text-muted">{{ msg[4] }}</small>
+                        </div>
+                    {% else %} {# Received from user #}
+                        <div class="text-start">
+                            <span class="badge bg-success">{{ msg[5] }}</span><br>
+                            <div class="bg-secondary text-white d-inline-block p-2 rounded">
+                                {{ msg[3] }}
+                            </div><br>
+                            <small class="text-muted">{{ msg[4] }}</small>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form method="POST" action="/admin/message" class="mt-4">
+        <div class="mb-3">
+            <label for="recipient_id" class="form-label">Send to:</label>
+            <select name="recipient_id" class="form-select" required>
+                {% for user in users %}
+                    <option value="{{ user[0] }}">{{ user[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="message" class="form-label">Message:</label>
+            <textarea name="message" class="form-control" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+</div>
+{% endblock %}
