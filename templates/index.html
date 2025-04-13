@@ -15,86 +15,83 @@
             <a href="/admin/payments" class="btn btn-warning mx-2">Manage Payments</a>
             <a href="/admin/upload" class="btn btn-outline-secondary mx-2">Upload for User</a>
             <a href="/admin/files" class="btn btn-warning mx-2">View Uploaded Files</a>
-           
-
         {% endif %}
     </div>
 
-   
     <!-- Display Orders -->
     <h2>Your Orders</h2>
-{% if orders %}
-    <table class="table">
+    {% if orders %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Service</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.name }}</td>
+                    <td>{{ order.service }}</td>
+                    <td>
+                        {% if order.status == 'submitted' %}
+                            <span class="badge bg-warning">Submitted</span>
+                        {% elif order.status == 'Accepted' %}
+                            <span class="badge bg-success">Accepted</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ order.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No orders found.</p>
+    {% endif %}
+
+    <!-- Display Payments -->
+    <h2>Your Payments</h2>
+    <table class="table table-striped">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Service</th>
+                <th>Amount (UGX)</th>
+                <th>Purpose</th>
+                <th>Mobile Number</th>
                 <th>Status</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
-            {% for order in orders %}
+            {% for payment in payments %}
             <tr>
-                <td>{{ order[1] }}</td>
-                <td>{{ order[2] }}</td>
+                <td>{{ payment.amount }}</td>
+                <td>{{ payment.purpose }}</td>
+                <td>{{ payment.mobile_number }}</td>
                 <td>
-                    {% if order[3] == 'submitted' %}
-                        <span class="badge bg-warning">Submitted</span>
-                    {% elif order[3] == 'Accepted' %}
-                        <span class="badge bg-success">Accepted</span>
+                    {% if payment.status == 'Pending Verification' %}
+                        <span class="badge bg-warning">Pending Verification</span>
+                    {% elif payment.status == 'Confirmed' %}
+                        <span class="badge bg-success">Verified</span>
                     {% else %}
-                        <span class="badge bg-secondary">{{ order[3] }}</span>
+                        <span class="badge bg-secondary">{{ payment.status }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if payment.status == 'Confirmed' %}
+                        <a href="{{ url_for('generate_receipt', payment_id=payment.id) }}" class="btn btn-sm btn-outline-primary">Receipt</a>
+                    {% else %}
+                        <span class="text-muted">Receipt unavailable</span>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-{% else %}
-    <p>No orders found.</p>
-{% endif %}
-
- <!-- Display Payments -->
-<h2>Your Payments</h2>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Amount (UGX)</th>
-            <th>Purpose</th>
-            <th>Mobile Number</th>
-            <th>Status</th>
-            <th>Action</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for payment in payments %}
-        <tr>
-            <td>{{ payment[0] }}</td> <!-- Amount -->
-            <td>{{ payment[1] }}</td> <!-- Purpose -->
-            <td>{{ payment[2] }}</td> <!-- Mobile Number -->
-            <td>
-                {% if payment[3] == 'Pending Verification' %}
-                    <span class="badge bg-warning">Pending Verification</span>
-                {% elif payment[3] == 'Confirmed' %}
-                    <span class="badge bg-success">Verified</span>
-                {% else %}
-                    <span class="badge bg-secondary">{{ payment[3] }}</span>
-                {% endif %}
-            </td>
-            <td>
-                {% if payment[3] == 'Confirmed' %}
-                    <a href="{{ url_for('generate_receipt', payment_id=payment[4]) }}" class="btn btn-sm btn-outline-primary">Receipt</a>
-                {% else %}
-                    <span class="text-muted">Receipt unavailable</span>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
 </div>
 {% endblock %}
+
 
 
 

@@ -21,20 +21,20 @@
             <tbody>
                 {% for order in orders %}
                 <tr>
-                    <td>{{ order[1] }}</td> <!-- Username -->
-                    <td>{{ order[3] }}</td> <!-- Service -->
+                    <td>{{ order.username }}</td>
+                    <td>{{ order.service }}</td>
                     <td>
-                        {% if order[4] == 'submitted' %}
+                        {% if order.status == 'submitted' %}
                             <span class="badge bg-warning">Pending</span>
-                        {% elif order[4] == 'Accepted' %}
+                        {% elif order.status == 'Accepted' %}
                             <span class="badge bg-success">Verified</span>
                         {% else %}
-                            <span class="badge bg-secondary">{{ order[4] }}</span>
+                            <span class="badge bg-secondary">{{ order.status }}</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if order[4] == 'submitted' %}
-                            <form action="{{ url_for('accept_order', order_id=order[0]) }}" method="post">
+                        {% if order.status == 'submitted' %}
+                            <form action="{{ url_for('accept_order', order_id=order.id) }}" method="post">
                                 <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Verify this order?');">Verify</button>
                             </form>
                         {% else %}
@@ -66,22 +66,22 @@
             <tbody>
                 {% for payment in payments %}
                 <tr>
-                    <td>{{ payment[1] }}</td> <!-- Username -->
-                    <td>{{ payment[2] }}</td> <!-- Amount -->
-                    <td>{{ payment[3] }}</td> <!-- Purpose -->
-                    <td>{{ payment[4] }}</td> <!-- Mobile Number -->
+                    <td>{{ payment.username }}</td>
+                    <td>{{ payment.amount }}</td>
+                    <td>{{ payment.purpose }}</td>
+                    <td>{{ payment.mobile_number }}</td>
                     <td>
-                        {% if payment[6] == 'Pending Verification' %}
+                        {% if payment.status == 'Pending Verification' %}
                             <span class="badge bg-warning">Pending</span>
-                        {% elif payment[6] == 'Confirmed' %}
+                        {% elif payment.status == 'Confirmed' %}
                             <span class="badge bg-success">Verified</span>
                         {% else %}
-                            <span class="badge bg-secondary">{{ payment[6] }}</span>
+                            <span class="badge bg-secondary">{{ payment.status }}</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if payment[6] == 'Pending Verification' %}
-                            <form action="{{ url_for('confirm_payment', payment_id=payment[0]) }}" method="post">
+                        {% if payment.status == 'Pending Verification' %}
+                            <form action="{{ url_for('confirm_payment', payment_id=payment.id) }}" method="post">
                                 <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Confirm this payment?');">Verify</button>
                             </form>
                         {% else %}
@@ -97,6 +97,7 @@
     {% endif %}
 </div>
 {% endblock %}
+
 
 
 

@@ -1,20 +1,25 @@
 {% extends "base.html" %}
+
+{% block title %}Schedule Training{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
-    <h2>Schedule Training</h2>
+    <h2 class="mb-4">Schedule Training</h2>
     <form method="post">
         <div class="mb-3">
             <label for="name" class="form-label">Training Name</label>
-            <input type="text" name="name" class="form-control" id="name" required>
+            <input type="text" name="name" class="form-control" id="name" placeholder="e.g., Stata Beginner Workshop" required>
         </div>
         <div class="mb-3">
             <label for="date" class="form-label">Date</label>
             <input type="date" name="date" class="form-control" id="date" required>
         </div>
         <button type="submit" class="btn btn-primary">Schedule</button>
+        <a href="/" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}
+
 
 
 

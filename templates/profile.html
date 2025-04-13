@@ -15,8 +15,12 @@
             <input type="tel" name="phone_number" id="phone_number" class="form-control" value="{{ profile_data[1] }}" required>
         </div>
         <div class="mb-3">
-            <label for="password" class="form-label">New Password</label>
-            <input type="password" name="password" id="password" class="form-control" placeholder="Enter a new password" required>
+            <label for="new_password" class="form-label">New Password</label>
+            <input type="password" name="new_password" id="new_password" class="form-control" placeholder="Enter a new password">
+        </div>
+        <div class="mb-3">
+            <label for="confirm_password" class="form-label">Confirm Password</label>
+            <input type="password" name="confirm_password" id="confirm_password" class="form-control" placeholder="Confirm new password">
         </div>
         <div class="text-center">
             <button type="submit" class="btn btn-primary">Update Profile</button>
@@ -25,6 +29,7 @@
     </form>
 </div>
 {% endblock %}
+
 
 
 

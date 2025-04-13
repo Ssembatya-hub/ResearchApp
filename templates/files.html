@@ -18,10 +18,10 @@
             <tbody>
                 {% for file in files %}
                 <tr>
-                    <td>{{ file[0] }}</td> <!-- Filename -->
-                    <td>{{ file[1] }}</td> <!-- Upload Date -->
+                    <td>{{ file.filename }}</td>
+                    <td>{{ file.upload_date }}</td>
                     <td>
-                        <a href="{{ url_for('download_file', filename=file[0]) }}" class="btn btn-sm btn-outline-primary">
+                        <a href="{{ url_for('download_file', filename=file.filename) }}" class="btn btn-sm btn-outline-primary">
                             Download
                         </a>
                     </td>
@@ -34,6 +34,7 @@
     {% endif %}
 </div>
 {% endblock %}
+
 
 
 

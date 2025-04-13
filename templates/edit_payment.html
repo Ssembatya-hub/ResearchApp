@@ -8,18 +8,19 @@
     <form method="post">
         <div class="mb-3">
             <label for="amount" class="form-label">Amount (UGX)</label>
-            <input type="number" name="amount" class="form-control" id="amount" value="{{ payment[0] }}" required>
+            <input type="number" name="amount" class="form-control" id="amount" value="{{ payment.amount }}" required>
         </div>
         <div class="mb-3">
             <label for="purpose" class="form-label">Purpose</label>
-            <input type="text" name="purpose" class="form-control" id="purpose" value="{{ payment[1] }}" required>
+            <input type="text" name="purpose" class="form-control" id="purpose" value="{{ payment.purpose }}" required>
         </div>
         <div class="mb-3">
             <label for="mobile_number" class="form-label">Mobile Number</label>
-            <input type="tel" name="mobile_number" class="form-control" id="mobile_number" value="{{ payment[2] }}" required>
+            <input type="tel" name="mobile_number" class="form-control" id="mobile_number" value="{{ payment.mobile_number }}" required>
         </div>
         <button type="submit" class="btn btn-primary">Save Changes</button>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}
+

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Admin Message Inbox</h2>
+  <div class="card">
+    <div class="card-body">
+      {% for msg in messages %}
+        <div class="mb-3">
+          <strong>{{ msg.sender.username if msg.sender else 'User ID: ' ~ msg.sender_id }}</strong><br>
+          <small class="text-muted">{{ msg.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+          <p>{{ msg.content }}</p>
+          <hr>
+        </div>
+      {% else %}
+        <p>No messages found.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

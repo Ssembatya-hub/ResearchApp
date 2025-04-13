@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Admin Messages{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">User Chats</h2>
+    <div class="list-group">
+        {% for user in users %}
+        <a href="{{ url_for('admin_view_conversation', user_id=user.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            {{ user.username }}
+            {% if unread_counts[user.id] > 0 %}
+            <span class="badge bg-danger rounded-pill">{{ unread_counts[user.id] }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

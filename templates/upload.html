@@ -1,17 +1,22 @@
 {% extends "base.html" %}
 
+{% block title %}Upload a File{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
-    <h2>Upload a File</h2>
+    <h2 class="mb-4">Upload a File</h2>
+    
     <form method="post" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="file" class="form-label">Select File</label>
             <input type="file" name="file" class="form-control" id="file" required>
         </div>
         <button type="submit" class="btn btn-primary">Upload</button>
+        <a href="/" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}
+
 
 
 

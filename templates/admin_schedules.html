@@ -19,10 +19,10 @@
         <tbody>
             {% for schedule in schedules %}
             <tr>
-                <td>{{ schedule[0] }}</td>
-                <td>{{ schedule[1] }}</td>  <!-- Username -->
-                <td>{{ schedule[2] }}</td>
-                <td>{{ schedule[3] }}</td>
+                <td>{{ schedule.id }}</td>
+                <td>{{ schedule.username }}</td>
+                <td>{{ schedule.name }}</td>
+                <td>{{ schedule.date }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -32,3 +32,4 @@
     {% endif %}
 </div>
 {% endblock %}
+

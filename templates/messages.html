@@ -3,48 +3,114 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-3">Conversation</h2>
+    <h2 class="mb-3">Your Chat with Admin</h2>
 
-    <!-- Chat box -->
     <div class="bg-light p-3 rounded" id="chatBox" style="height: 400px; overflow-y: scroll;">
         {% for msg in messages %}
-            {% if msg[2] == current_user.id %}
-                <!-- Message from current user -->
-                <div class="text-end mb-3">
-                    <div class="d-inline-block p-2 bg-primary text-white rounded-3">
-                        {{ msg[0] }}
+            <div class="mb-3 {{ 'text-end' if msg.sender_id == current_user.id else 'text-start' }}">
+                {% if msg.audio %}
+                    <audio controls class="mb-2">
+                        <source src="data:audio/webm;base64,{{ msg.audio }}" type="audio/webm">
+                        Your browser does not support the audio element.
+                    </audio><br>
+                {% endif %}
+                {% if msg.content %}
+                    <div class="d-inline-block p-2 {{ 'bg-primary text-white' if msg.sender_id == current_user.id else 'bg-secondary text-white' }} rounded-3">
+                        {{ msg.content }}
                     </div><br>
-                    <small class="text-muted">{{ msg[3] }} • {{ msg[1] }}</small>
-                </div>
-            {% else %}
-                <!-- Message from the other person (e.g., admin) -->
-                <div class="text-start mb-3">
-                    <div class="d-inline-block p-2 bg-secondary text-white rounded-3">
-                        {{ msg[0] }}
-                    </div><br>
-                    <small class="text-muted">{{ msg[3] }} • {{ msg[1] }}</small>
-                </div>
-            {% endif %}
+                {% endif %}
+                <small class="text-muted">{{ msg.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+            </div>
         {% endfor %}
     </div>
 
-    <!-- Send new message -->
-    <form method="POST" class="mt-3">
+    <form method="POST" action="{{ url_for('send_user_message') }}">
         <div class="mb-2">
-            <textarea name="message" class="form-control" rows="2" placeholder="Type your message..." required></textarea>
+            <textarea name="message" id="message" class="form-control" rows="2" placeholder="Type your message..."></textarea>
         </div>
-        <button type="submit" class="btn btn-success">Send</button>
+        <input type="hidden" name="voice_note" id="voice_note">
+
+        <div class="mb-2">
+            <button type="button" class="btn btn-outline-dark" id="startBtn">🎙️ Start</button>
+            <button type="button" class="btn btn-outline-danger" id="stopBtn" disabled>⏹️ Stop</button>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <button type="submit" class="btn btn-success">Send</button>
+            <button type="button" class="btn btn-outline-secondary" id="emojiBtn">😊 Emoji</button>
+        </div>
+        <emoji-picker id="emojiPicker" style="display:none;"></emoji-picker>
     </form>
 </div>
 
-<!-- Scroll to bottom script -->
-<script>
-    const chatBox = document.getElementById('chatBox');
-    if (chatBox) {
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
+<script type="module">
+    import 'https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js';
+
+    const picker = document.querySelector("emoji-picker");
+    const emojiBtn = document.getElementById("emojiBtn");
+    const messageInput = document.getElementById("message");
+
+    emojiBtn.addEventListener("click", () => {
+        picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+    });
+
+    picker.addEventListener('emoji-click', event => {
+        messageInput.value += event.detail.unicode;
+    });
+
+    let mediaRecorder, audioChunks = [];
+
+    document.getElementById("startBtn").onclick = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    document.getElementById('voice_note').value = reader.result.split(',')[1];
+                };
+                reader.readAsDataURL(blob);
+            };
+
+            mediaRecorder.start();
+            document.getElementById("startBtn").disabled = true;
+            document.getElementById("stopBtn").disabled = false;
+        } catch (err) {
+            alert("⚠️ Microphone access is required.");
+        }
+    };
+
+    document.getElementById("stopBtn").onclick = () => {
+        mediaRecorder.stop();
+        document.getElementById("startBtn").disabled = false;
+        document.getElementById("stopBtn").disabled = true;
+    };
+
+    const chatBox = document.getElementById("chatBox");
+    chatBox.scrollTop = chatBox.scrollHeight;
 </script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

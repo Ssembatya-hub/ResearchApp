@@ -1,141 +1,113 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, current_app
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-import sqlite3
 import os
+from dotenv import load_dotenv
+
+# Load env
+load_dotenv()
+os.environ['DATABASE_URL'] = 'postgresql://postgres:Breakthrough123456@localhost:5432/researchapp'
+
+print("Loaded DATABASE_URL:", os.environ.get("DATABASE_URL"))
+
+print("Loaded DATABASE_URL:", os.environ.get("DATABASE_URL"))
+from flask import Flask, render_template, request, redirect, url_for, flash, current_app, send_file, send_from_directory
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
-
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
+app.secret_key = os.environ.get('SECRET_KEY', 'default_secret')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['COMPANY_NAME'] = "SSEMBATYA RESEARCH SOLUTIONS"
 app.config['SERVICES_OUTLINE'] = "Data Analysis, Proposal Writing, Training, Consultation, Questionnaire Development, Questionnaire Upload on Kobocollect, GIS Study Area Maps, Business Apps Development"
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Flask-Login setup
+db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# User class for Flask-Login
-class User(UserMixin):
-    def __init__(self, id, username, is_admin):
-        self.id = id
-        self.username = username
-        self.is_admin = is_admin
+# Define models
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True)
+    password = db.Column(db.String(200))
+    email = db.Column(db.String(120))
+    phone_number = db.Column(db.String(15))
+    is_admin = db.Column(db.Boolean, default=False)
+    messages_sent = db.relationship('Message', backref='sender', foreign_keys='Message.sender_id')
+    messages_received = db.relationship('Message', backref='recipient', foreign_keys='Message.recipient_id')
 
-# Configure upload folder and allowed extensions
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'pdf', 'docx', 'xlsx', 'jpg', 'png'}
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    name = db.Column(db.String(100))
+    service = db.Column(db.String(100))
+    schedule_date = db.Column(db.String(50))
+    phone_number = db.Column(db.String(20))
+    status = db.Column(db.String(50), default='submitted')
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure the upload folder exists
+class Schedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    name = db.Column(db.String(100))
+    date = db.Column(db.String(50))
 
-# Database setup
-def init_db():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
-            email TEXT,
-            phone_number TEXT,
-            is_admin INTEGER DEFAULT 0
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            name TEXT,
-            service TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS schedules (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            name TEXT,
-            date TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            amount REAL,
-            purpose TEXT,
-            mobile_number TEXT,
-            date TEXT
-        )
-    ''')
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender_id INTEGER,
-        recipient_id INTEGER,
-        content TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        is_read INTEGER DEFAULT 0,
-        FOREIGN KEY(sender_id) REFERENCES users(id),
-        FOREIGN KEY(recipient_id) REFERENCES users(id)
-    )
-''')
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    amount = db.Column(db.Float)
+    purpose = db.Column(db.String(200))
+    mobile_number = db.Column(db.String(20))
+    date = db.Column(db.String(50))
+    status = db.Column(db.String(50), default='Pending Verification')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            filename TEXT,
-            upload_date TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
+class File(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    filename = db.Column(db.String(200))
+    upload_date = db.Column(db.String(50))
 
-# Initialize the database
-init_db()
+class Message(db.Model):
+    __tablename__ = 'message'
+    __table_args__ = {'extend_existing': True}
 
-# Flask-Login user loader
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    content = db.Column(db.Text)
+    audio = db.Column(db.Text)  # ✅ ensure this is included
+    timestamp = db.Column(db.DateTime)
+    subject = db.Column(db.String(200))
+    status = db.Column(db.String(20), default='unread')
+
+
+# Login manager user loader
 @login_manager.user_loader
 def load_user(user_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username, is_admin FROM users WHERE id = ?", (user_id,))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        return User(id=user[0], username=user[1], is_admin=user[2])
-    return None
+    return User.query.get(int(user_id))
 
-# Utility function to check admin status
-def is_admin():
-    return current_user.is_admin == 1
-
-# Utility function to check allowed file types
+# Utility: allowed file types
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pdf', 'docx', 'xlsx', 'jpg', 'png'}
 
-# Routes
+# Admin check
+def is_admin():
+    return current_user.is_authenticated and current_user.is_admin
+
+# Home page
 @app.route('/')
 @login_required
 def index():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT id, name, service, status FROM orders WHERE user_id = ?", (current_user.id,))
-    orders = cursor.fetchall()
-
-    cursor.execute("SELECT id, name, date FROM schedules WHERE user_id = ?", (current_user.id,))
-    schedules = cursor.fetchall()
-
-    cursor.execute("SELECT amount, purpose, mobile_number, status, id FROM payments WHERE user_id = ?", (current_user.id,))
-
-    payments = cursor.fetchall()
-
-    conn.close()
+    orders = Order.query.filter_by(user_id=current_user.id).all()
+    schedules = Schedule.query.filter_by(user_id=current_user.id).all()
+    payments = Payment.query.filter_by(user_id=current_user.id).all()
 
     return render_template(
         'index.html',
@@ -146,39 +118,59 @@ def index():
         payments=payments
     )
 
+# Registration
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if password != confirm_password:
+            flash("Passwords do not match!", "danger")
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(username=username).first():
+            flash("Username already exists.", "danger")
+            return redirect(url_for('register'))
+
+        hashed_password = generate_password_hash(password)
+        new_user = User(username=username, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        flash("Registration successful!", "success")
+        return redirect(url_for('login'))
+
+    return render_template('register.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
+
+# Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        user = User.query.filter_by(username=username).first()
 
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, username, password, is_admin FROM users WHERE username = ?", (username,))
-        user = cursor.fetchone()
-        conn.close()
-
-        if user and check_password_hash(user[2], password):
-            login_user(User(id=user[0], username=user[1], is_admin=user[3]))
+        if user and check_password_hash(user.password, password):
+            login_user(user)
             flash("Logged in successfully!", "success")
             return redirect(url_for('index'))
-        else:
-            flash("Invalid username or password.", "danger")
+        flash("Invalid username or password.", "danger")
 
     return render_template('login.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
 
+# Logout
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash("You have been logged out.", "success")
+    flash("Logged out.", "success")
     return redirect(url_for('login'))
-
+# Profile page
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
+    user = User.query.get(current_user.id)
 
     if request.method == 'POST':
         email = request.form.get('email')
@@ -190,38 +182,26 @@ def profile():
             flash("Email and phone number are required!", "danger")
             return redirect(url_for('profile'))
 
-        update_query = "UPDATE users SET email = ?, phone_number = ?"
-        params = [email, phone_number]
+        user.email = email
+        user.phone_number = phone_number
 
         if new_password:
             if new_password != confirm_password:
                 flash("Passwords do not match!", "danger")
-                conn.close()
                 return redirect(url_for('profile'))
-            hashed_password = generate_password_hash(new_password)
-            update_query += ", password = ?"
-            params.append(hashed_password)
-
-        update_query += " WHERE id = ?"
-        params.append(current_user.id)
+            user.password = generate_password_hash(new_password)
 
         try:
-            cursor.execute(update_query, tuple(params))
-            conn.commit()
+            db.session.commit()
             flash("Profile updated successfully!", "success")
         except Exception as e:
-            flash(f"An error occurred: {e}", "danger")
+            flash(f"An error occurred: {str(e)}", "danger")
 
-        conn.close()
         return redirect(url_for('profile'))
 
-    # GET: load existing profile data
-    cursor.execute("SELECT email, phone_number FROM users WHERE id = ?", (current_user.id,))
-    profile_data = cursor.fetchone()
-    conn.close()
+    return render_template('profile.html', profile_data=user, company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
 
-    return render_template('profile.html', profile_data=profile_data, company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
-
+# Place order
 @app.route('/order', methods=['GET', 'POST'])
 @login_required
 def place_order():
@@ -229,120 +209,92 @@ def place_order():
 
     if request.method == 'POST':
         name = request.form.get('name')
-        phone_number = request.form.get('phone_number')
         service = request.form.get('service')
         schedule_date = request.form.get('schedule_date')
+        phone_number = request.form.get('phone_number')
 
         try:
-            conn = sqlite3.connect('database.db')
-            cursor = conn.cursor()
-
-            # Save all order details permanently
-            cursor.execute("""
-                INSERT INTO orders (user_id, name, service, schedule_date, phone_number, status)
-                VALUES (?, ?, ?, ?, ?, 'submitted')
-            """, (current_user.id, name, service, schedule_date, phone_number))
-
-            conn.commit()
-            conn.close()
-
-            flash("Order placed successfully and saved permanently!", "success")
+            new_order = Order(
+                user_id=current_user.id,
+                name=name,
+                service=service,
+                schedule_date=schedule_date,
+                phone_number=phone_number,
+                status='submitted'
+            )
+            db.session.add(new_order)
+            db.session.commit()
+            flash("Order placed successfully!", "success")
             return redirect(url_for('index'))
         except Exception as e:
-            flash(f"An error occurred: {e}", "danger")
+            flash(f"An error occurred: {str(e)}", "danger")
             return redirect(url_for('place_order'))
 
-    return render_template(
-        'order.html',
-        company_name=app.config['COMPANY_NAME'],
-        services_outline=app.config['SERVICES_OUTLINE'],
-        services=services
-    )
-
+    return render_template('order.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
+# Submit order
 @app.route('/submit_order/<int:order_id>', methods=['POST'])
 @login_required
 def submit_order(order_id):
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
+    order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
+    if order:
+        order.status = 'submitted'
+        db.session.commit()
+        flash("Order successfully submitted to the admin.", "success")
+    else:
+        flash("Failed to submit order. Please try again.", "danger")
+    return redirect(url_for('index'))
 
-        # Update the status of the order to 'submitted'
-        cursor.execute("""
-            UPDATE orders 
-            SET status = 'submitted' 
-            WHERE id = ? AND user_id = ?
-        """, (order_id, current_user.id))
-        conn.commit()
-
-        # Check if the update was successful
-        if cursor.rowcount > 0:
-            flash("Order successfully submitted to the admin.", "success")
-        else:
-            flash("Failed to submit order. Please try again.", "danger")
-    except Exception as e:
-        flash(f"An error occurred: {e}", "danger")
-    finally:
-        conn.close()
-
-    return redirect(url_for('user_orders'))
+# Accept order (Admin)
 @app.route('/accept_order/<int:order_id>', methods=['POST'])
 @login_required
 def accept_order(order_id):
-    if not current_user.is_admin:
+    if not is_admin():
         flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("UPDATE orders SET status = 'Accepted' WHERE id = ?", (order_id,))
-        conn.commit()
-        conn.close()
+    order = Order.query.get(order_id)
+    if order:
+        order.status = 'Accepted'
+        db.session.commit()
         flash("Order has been accepted!", "success")
-    except Exception as e:
-        flash(f"An error occurred: {e}", "danger")
-
+    else:
+        flash("Order not found.", "danger")
     return redirect(url_for('admin_orders'))
+
+# Verify order (Admin)
 @app.route('/verify_order/<int:order_id>', methods=['POST'])
 @login_required
 def verify_order(order_id):
-    if not current_user.is_admin:
+    if not is_admin():
         flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("UPDATE orders SET status = 'Verified' WHERE id = ?", (order_id,))
-        conn.commit()
-        conn.close()
+    order = Order.query.get(order_id)
+    if order:
+        order.status = 'Verified'
+        db.session.commit()
         flash("Order has been verified!", "success")
-    except Exception as e:
-        flash(f"An error occurred: {e}", "danger")
-
+    else:
+        flash("Order not found.", "danger")
     return redirect(url_for('admin_orders'))
+
+# Confirm order (Admin)
 @app.route('/confirm_order/<int:order_id>', methods=['POST'])
 @login_required
 def confirm_order(order_id):
-    if not current_user.is_admin:
+    if not is_admin():
         flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-
-        # Update the order status to 'Verified'
-        cursor.execute("UPDATE orders SET status = 'Verified' WHERE id = ?", (order_id,))
-        conn.commit()
-        conn.close()
-
+    order = Order.query.get(order_id)
+    if order:
+        order.status = 'Verified'
+        db.session.commit()
         flash("Order has been verified!", "success")
-    except Exception as e:
-        flash(f"An error occurred: {e}", "danger")
-
+    else:
+        flash("Order not found.", "danger")
     return redirect(url_for('admin_orders'))
-
+# Payment
 @app.route('/payment', methods=['GET', 'POST'])
 @login_required
 def payment():
@@ -352,228 +304,114 @@ def payment():
         purpose = request.form['purpose']
         mobile_number = request.form['mobile_number']
 
-        try:
-            conn = sqlite3.connect('database.db')
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO payments (user_id, amount, purpose, mobile_number, date, status)
-                VALUES (?, ?, ?, ?, date('now'), 'Pending Verification')
-            """, (current_user.id, amount, purpose, mobile_number))
-            conn.commit()
-            conn.close()
+        new_payment = Payment(
+            user_id=current_user.id,
+            amount=amount,
+            purpose=purpose,
+            mobile_number=mobile_number,
+            date=datetime.now().strftime('%Y-%m-%d'),
+            status="Pending Verification"
+        )
+        db.session.add(new_payment)
+        db.session.commit()
+        flash("Payment recorded and saved permanently!", "success")
+        return redirect(url_for('index'))
 
-            flash("Payment recorded and saved permanently!", "success")
-            return redirect(url_for('index'))
-        except Exception as e:
-            flash(f"An error occurred: {e}", "danger")
-            return redirect(url_for('payment'))
+    return render_template(
+        'payment.html',
+        company_name=app.config['COMPANY_NAME'],
+        services_outline=app.config['SERVICES_OUTLINE'],
+        services=services
+    )
 
-    return render_template('payment.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'], services=services)
-
+# Admin view of orders
 @app.route('/admin/orders')
 @login_required
 def admin_orders():
-    if not current_user.is_admin:
+    if not is_admin():
         flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT 
-            orders.id,               -- 0: Order ID
-            users.username,          -- 1: Username
-            orders.phone_number,     -- ✅ Now fetching from correct place
-            orders.name,             -- 3: Name (client)
-            orders.service,          -- 4: Service
-            orders.schedule_date,    -- 5: Schedule Date
-            orders.status            -- 6: Status
-        FROM orders
-        JOIN users ON orders.user_id = users.id
-        ORDER BY orders.id DESC
-    """)
-    orders = cursor.fetchall()
-    conn.close()
+    orders = db.session.query(
+        Order.id,
+        User.username,
+        Order.phone_number,
+        Order.name,
+        Order.service,
+        Order.schedule_date,
+        Order.status
+    ).join(User).order_by(Order.id.desc()).all()
 
     return render_template('admin_orders.html', orders=orders)
-
 @app.route('/order/edit/<int:order_id>', methods=['GET', 'POST'])
 @login_required
 def edit_order(order_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
+    order = Order.query.get_or_404(order_id)
+
     if request.method == 'POST':
-        name = request.form['name']
-        service = request.form['service']
-        cursor.execute("UPDATE orders SET name = ?, service = ? WHERE id = ?", (name, service, order_id))
-        conn.commit()
-        conn.close()
+        order.name = request.form['name']
+        order.service = request.form['service']
+        db.session.commit()
         flash("Order updated successfully!", "success")
         return redirect(url_for('admin_orders'))
-    cursor.execute("SELECT name, service FROM orders WHERE id = ?", (order_id,))
-    order = cursor.fetchone()
-    conn.close()
-    return render_template('edit_order.html', order=order, company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
+
+    return render_template(
+        'edit_order.html',
+        order=order,
+        company_name=app.config['COMPANY_NAME'],
+        services_outline=app.config['SERVICES_OUTLINE']
+    )
 
 @app.route('/order/delete/<int:order_id>', methods=['POST'])
 @login_required
 def delete_order(order_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM orders WHERE id = ?", (order_id,))
-    conn.commit()
-    conn.close()
+    order = Order.query.get_or_404(order_id)
+    db.session.delete(order)
+    db.session.commit()
     flash("Order deleted successfully!", "success")
     return redirect(url_for('admin_orders'))
-
-@app.route('/upload', methods=['GET', 'POST'])
-@login_required
-def upload_file():
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file part', 'danger')
-            return redirect(request.url)
-
-        file = request.files['file']
-
-        if file.filename == '':
-            flash('No selected file', 'danger')
-            return redirect(request.url)
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-            conn = sqlite3.connect('database.db')
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO files (user_id, filename, upload_date) VALUES (?, ?, date('now'))",
-                (current_user.id, filename)
-            )
-            conn.commit()
-            conn.close()
-
-            flash('File uploaded successfully!', 'success')
-            return redirect(url_for('index'))
-
-    return render_template('upload.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
-from flask import send_from_directory
-
-@app.route('/uploads/<filename>')
-@login_required
-def download_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
-
-        # Validate input
-        if password != confirm_password:
-            flash("Passwords do not match!", "danger")
-            return redirect(url_for('register'))
-
-        hashed_password = generate_password_hash(password)
-
-        try:
-            conn = sqlite3.connect('database.db')
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO users (username, password, is_admin) VALUES (?, ?, 0)",
-                (username, hashed_password)
-            )
-            conn.commit()
-            conn.close()
-            flash("Registration successful! Please log in.", "success")
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            flash("Username already exists. Please choose another.", "danger")
-
-    return render_template('register.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
 
 @app.route('/files')
 @login_required
 def view_files():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT filename, upload_date FROM files WHERE user_id = ?", (current_user.id,))
-    files = cursor.fetchall()
-    conn.close()
-    return render_template('files.html', files=files, company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
+    files = File.query.filter_by(user_id=current_user.id).all()
+    return render_template(
+        'files.html',
+        files=files,
+        company_name=app.config['COMPANY_NAME'],
+        services_outline=app.config['SERVICES_OUTLINE']
+    )
 
 @app.route('/payment/edit/<int:payment_id>', methods=['GET', 'POST'])
 @login_required
 def edit_payment(payment_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    # Fetch payment details
-    cursor.execute("SELECT id, amount, purpose, mobile_number FROM payments WHERE id = ? AND user_id = ?", 
-                   (payment_id, current_user.id))
-    payment = cursor.fetchone()
-
+    payment = Payment.query.filter_by(id=payment_id, user_id=current_user.id).first()
     if not payment:
         flash("Payment not found or you do not have permission to edit it.", "danger")
-        conn.close()
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        amount = request.form['amount']
-        purpose = request.form.get('purpose', '')  # Default to empty string if missing
-        mobile_number = request.form.get('mobile_number', '')  # Default to empty string
-
-        cursor.execute("""
-            UPDATE payments 
-            SET amount = ?, purpose = ?, mobile_number = ? 
-            WHERE id = ? AND user_id = ?
-        """, (amount, purpose, mobile_number, payment_id, current_user.id))
-
-        conn.commit()
-
-        if cursor.rowcount > 0:
-            flash("Payment updated successfully!", "success")
-        else:
-            flash("Payment update failed. Please try again.", "danger")
-
-        conn.close()
+        payment.amount = request.form.get('amount', 0.0)
+        payment.purpose = request.form.get('purpose', '')
+        payment.mobile_number = request.form.get('mobile_number', '')
+        db.session.commit()
+        flash("Payment updated successfully!", "success")
         return redirect(url_for('index'))
 
-    conn.close()
     return render_template('edit_payment.html', payment=payment)
 
-
-# Delete a payment
 @app.route('/payment/delete/<int:payment_id>', methods=['POST'])
 @login_required
 def delete_payment(payment_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    # Check if the payment exists before deleting
-    cursor.execute("SELECT id FROM payments WHERE id = ? AND user_id = ?", (payment_id, current_user.id))
-    payment = cursor.fetchone()
-
+    payment = Payment.query.filter_by(id=payment_id, user_id=current_user.id).first()
     if not payment:
         flash("Payment not found or you do not have permission to delete it.", "danger")
-        conn.close()
         return redirect(url_for('index'))
 
-    # Delete the payment
-    cursor.execute("DELETE FROM payments WHERE id = ? AND user_id = ?", (payment_id, current_user.id))
-    conn.commit()
-
-    if cursor.rowcount > 0:
-        flash("Payment deleted successfully!", "success")
-    else:
-        flash("Failed to delete payment. Please try again.", "danger")
-
-    conn.close()
+    db.session.delete(payment)
+    db.session.commit()
+    flash("Payment deleted successfully!", "success")
     return redirect(url_for('index'))
-
 @app.route('/admin/payments')
 @login_required
 def admin_payments():
@@ -581,25 +419,15 @@ def admin_payments():
         flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    
-    # Join with users to get username
-    cursor.execute("""
-        SELECT 
-            payments.id,            -- 0: Payment ID
-            users.username,         -- 1: Username
-            payments.amount,        -- 2: Amount
-            payments.purpose,       -- 3: Purpose
-            payments.mobile_number, -- 4: Mobile Number
-            payments.date,          -- 5: Date
-            payments.status         -- 6: Status
-        FROM payments
-        JOIN users ON payments.user_id = users.id
-        ORDER BY payments.id DESC
-    """)
-    payments = cursor.fetchall()
-    conn.close()
+    payments = Payment.query.join(User).add_columns(
+        Payment.id,
+        User.username,
+        Payment.amount,
+        Payment.purpose,
+        Payment.mobile_number,
+        Payment.date,
+        Payment.status
+    ).order_by(Payment.id.desc()).all()
 
     return render_template('admin_orders.html', payments=payments)
 
@@ -610,340 +438,16 @@ def confirm_payment(payment_id):
         flash("Access denied.", "danger")
         return redirect(url_for('index'))
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("UPDATE payments SET status = 'Confirmed' WHERE id = ?", (payment_id,))
-        conn.commit()
-        conn.close()
+    payment = Payment.query.get(payment_id)
+    if payment:
+        payment.status = 'Confirmed'
+        db.session.commit()
         flash("Payment has been confirmed!", "success")
-    except Exception as e:
-        flash(f"An error occurred: {e}", "danger")
+    else:
+        flash("Payment not found.", "danger")
 
     return redirect(url_for('admin_payments'))
-from flask import send_file
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-from io import BytesIO
-import os
 
-@app.route('/receipt/<int:payment_id>')
-@login_required
-def generate_receipt(payment_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT payments.amount, payments.purpose, payments.mobile_number, payments.date, payments.status, users.username
-        FROM payments
-        JOIN users ON payments.user_id = users.id
-        WHERE payments.id = ? AND payments.user_id = ?
-    """, (payment_id, current_user.id))
-    payment = cursor.fetchone()
-    conn.close()
-
-    if not payment:
-        flash("Payment not found or access denied.", "danger")
-        return redirect(url_for('index'))
-
-    buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    # Paths
-    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'logo.png')
-    stamp_path = os.path.join(current_app.root_path, 'static', 'images', 'stamp.png')
-
-
-    # --- Top Logo + Company Name ---
-    if os.path.exists(logo_path):
-        logo = ImageReader(logo_path)
-        pdf.drawImage(logo, 40, height - 90, width=50, height=50, mask='auto')
-        pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawString(100, height - 70, "SSEMBATYA RESEARCH SOLUTIONS")
-    else:
-        pdf.setFont("Helvetica-Bold", 18)
-        pdf.drawString(100, height - 70, "SSEMBATYA RESEARCH SOLUTIONS")
-
-    # --- Title ---
-    pdf.setFont("Helvetica", 12)
-    pdf.drawString(100, height - 100, "Payment Receipt")
-    pdf.line(100, height - 102, 500, height - 102)
-
-    # --- Payment Info ---
-    pdf.drawString(100, height - 130, f"Username: {payment[5]}")
-    pdf.drawString(100, height - 150, f"Amount: UGX {payment[0]:,.0f}")
-    pdf.drawString(100, height - 170, f"Purpose: {payment[1]}")
-    pdf.drawString(100, height - 190, f"Mobile Number: {payment[2]}")
-    pdf.drawString(100, height - 210, f"Date: {payment[3]}")
-    pdf.drawString(100, height - 230, f"Status: {payment[4]}")
-
-    # --- Thank You + Stamp ---
-    pdf.drawString(100, height - 270, "Thank you for your payment!")
-
-    if os.path.exists(stamp_path):
-        stamp = ImageReader(stamp_path)
-        pdf.drawImage(stamp, 330, height - 310, width=120, height=60, mask='auto')
-
-    pdf.showPage()
-    pdf.save()
-    buffer.seek(0)
-
-    return send_file(buffer, as_attachment=True, download_name=f"receipt_{payment_id}.pdf", mimetype='application/pdf')
-
-@app.route('/admin/files')
-@login_required
-def admin_files():
-    if not current_user.is_admin:
-        flash("Access denied.", "danger")
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT users.username, files.filename, files.upload_date
-        FROM files
-        JOIN users ON files.user_id = users.id
-    """)
-    uploads = cursor.fetchall()
-    conn.close()
-    return render_template('admin_files.html', uploads=uploads)
-@app.route('/admin/upload', methods=['GET', 'POST'])
-@login_required
-def admin_upload_file():
-    if not current_user.is_admin:
-        flash("Access denied.", "danger")
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username FROM users")
-    users = cursor.fetchall()
-
-    if request.method == 'POST':
-        user_id = request.form['user_id']
-        file = request.files['file']
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
-            cursor.execute(
-                "INSERT INTO files (user_id, filename, upload_date) VALUES (?, ?, date('now'))",
-                (user_id, filename)
-            )
-            conn.commit()
-            flash('File uploaded successfully for user!', 'success')
-        else:
-            flash('Invalid file or no file selected.', 'danger')
-
-    conn.close()
-    return render_template('admin_upload.html', users=users)
-@app.route('/admin/message', methods=['GET', 'POST'])
-@login_required
-def admin_message():
-    if not current_user.is_admin:
-        flash("Access denied.", "danger")
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    if request.method == 'POST':
-        recipient_id = request.form['recipient_id']
-        message = request.form['message']
-
-        cursor.execute("INSERT INTO messages (sender_id, recipient_id, message) VALUES (?, ?, ?)",
-                       (current_user.id, recipient_id, message))
-        conn.commit()
-        conn.close()
-        flash("Message sent successfully!", "success")
-        return redirect(url_for('admin_message'))
-
-    cursor.execute("SELECT id, username FROM users WHERE is_admin = 0")
-    users = cursor.fetchall()
-    conn.close()
-    return render_template('admin_send_message.html', users=users)
-@app.route('/admin/messages')
-@login_required
-def admin_messages():
-    if not current_user.is_admin:
-        flash("Access denied", "danger")
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT messages.id, messages.sender_id, messages.recipient_id, messages.message, messages.timestamp, 
-               users.username 
-        FROM messages 
-        JOIN users ON messages.sender_id = users.id OR messages.recipient_id = users.id
-        WHERE sender_id = ? OR recipient_id = ?
-        ORDER BY messages.timestamp ASC
-    """, (current_user.id, current_user.id))
-    messages = cursor.fetchall()
-    conn.close()
-
-    return render_template('admin_chat.html', messages=messages)
-
-@app.route('/messages', methods=['GET', 'POST'])
-@login_required
-def messages():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    # Send a message to admin
-    if request.method == 'POST':
-        message = request.form['message']
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cursor.execute(
-            "INSERT INTO messages (sender_id, recipient_id, message, timestamp) VALUES (?, ?, ?, ?)",
-            (current_user.id, 1, message, timestamp)
-        )
-        conn.commit()
-
-    # Fetch all messages between user and admin (ID = 1)
-    cursor.execute("""
-        SELECT messages.sender_id, messages.message, messages.timestamp, users.username
-        FROM messages
-        JOIN users ON messages.sender_id = users.id
-        WHERE (sender_id = ? AND recipient_id = 1) OR (sender_id = 1 AND recipient_id = ?)
-        ORDER BY messages.timestamp ASC
-    """, (current_user.id, current_user.id))
-    messages = cursor.fetchall()
-    conn.close()
-
-    return render_template('messages.html', messages=messages)
-
-@app.context_processor
-def inject_unread_message_count():
-    if current_user.is_authenticated and not current_user.is_admin:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT COUNT(*) FROM messages
-            WHERE recipient_id = ? AND status = 'unread'
-        """, (current_user.id,))
-        count = cursor.fetchone()[0]
-        conn.close()
-        return dict(unread_count=count)
-    return dict(unread_count=0)
-@app.route('/reply/<int:message_id>', methods=['POST'])
-@login_required
-def reply_message(message_id):
-    content = request.form.get('message')
-
-    if not content:
-        flash("Message cannot be empty.", "danger")
-        return redirect(url_for('messages'))
-
-    # Assume admin has ID = 1
-    admin_id = 1
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO messages (sender_id, recipient_id, subject, message, timestamp, status)
-        VALUES (?, ?, ?, ?, datetime('now'), 'unread')
-    """, (current_user.id, admin_id, f"Reply to message {message_id}", content))
-    conn.commit()
-    conn.close()
-
-    flash("Reply sent to admin!", "success")
-    return redirect(url_for('messages'))
-
-@app.route('/admin/inbox')
-@login_required
-def admin_inbox():
-    if not current_user.is_admin:
-        flash("Access denied.", "danger")
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT messages.id, users.username, messages.message, messages.timestamp
-        FROM messages
-        JOIN users ON messages.sender_id = users.id
-        WHERE messages.recipient_id = ?
-        ORDER BY messages.timestamp DESC
-    """, (current_user.id,))
-    inbox = cursor.fetchall()
-    conn.close()
-
-    return render_template('admin_inbox.html', inbox=inbox)
-
-@app.route('/send-message', methods=['GET', 'POST'])
-@login_required
-def send_message():
-    if request.method == 'POST':
-        subject = request.form.get('subject')
-        content = request.form.get('message')
-
-        if not subject or not content:
-            flash("Subject and message are required.", "danger")
-            return redirect(url_for('send_message'))
-
-        admin_id = 1  # assuming admin has ID 1
-
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO messages (sender_id, recipient_id, subject, message, timestamp, status)
-            VALUES (?, ?, ?, ?, datetime('now'), 'unread')
-        """, (current_user.id, admin_id, subject, content))
-        conn.commit()
-        conn.close()
-
-        flash("Message sent to admin!", "success")
-        return redirect(url_for('messages'))
-
-    return render_template('send_message.html')
-@app.route('/send_message_to_admin', methods=['POST'])
-@login_required
-def send_message_to_admin():
-    message = request.form.get('message')
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    # Find admin ID (assuming there's only one admin)
-    cursor.execute("SELECT id FROM users WHERE is_admin = 1 LIMIT 1")
-    admin = cursor.fetchone()
-    if admin:
-        admin_id = admin[0]
-        cursor.execute("""
-            INSERT INTO messages (sender_id, recipient_id, message, timestamp, status)
-            VALUES (?, ?, ?, ?, 'unread')
-        """, (current_user.id, admin_id, message, timestamp))
-        conn.commit()
-    conn.close()
-
-    flash("Message sent!", "success")
-    return redirect(url_for('messages'))
-
-@app.route('/send_user_message', methods=['POST'])
-@login_required
-def send_user_message():
-    message = request.form.get('message')
-
-    if message:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        # Send to admin (assumed to have id = 1)
-        cursor.execute("""
-            INSERT INTO messages (sender_id, recipient_id, message, timestamp)
-            VALUES (?, ?, ?, datetime('now'))
-        """, (current_user.id, 1, message))
-        conn.commit()
-        conn.close()
-        flash("Message sent to admin.", "success")
-    else:
-        flash("Message cannot be empty.", "danger")
-
-    return redirect(url_for('messages'))
 @app.route('/test-image')
 def test_image():
     return '''
@@ -954,35 +458,306 @@ def test_image():
     '''
 @app.route('/fix-passwords')
 def fix_passwords():
-    from werkzeug.security import generate_password_hash
-    import sqlite3
-
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT id, password FROM users")
-    users = cursor.fetchall()
-
-    count = 0
-    for user_id, password in users:
-        if not password.startswith('pbkdf2:sha256'):
-            hashed = generate_password_hash(password)
-            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
-            count += 1
-
-    conn.commit()
-    conn.close()
-
-    return f"{count} user password(s) updated."
+    users = User.query.all()
+    updated = 0
+    for user in users:
+        if not user.password.startswith('pbkdf2:sha256'):
+            user.password = generate_password_hash(user.password)
+            updated += 1
+    db.session.commit()
+    return f"{updated} user password(s) updated."
 
 @app.route('/mtn/callback', methods=['POST'])
 def mtn_callback():
     data = request.json
-    # Process the callback data here
     print("Callback data received:", data)
     return "Received", 200
+
+@app.context_processor
+def inject_unread_message_count():
+    if current_user.is_authenticated and not current_user.is_admin:
+        count = Message.query.filter_by(recipient_id=current_user.id, status='unread').count()
+        return dict(unread_count=count)
+    return dict(unread_count=0)
+
+@app.route('/send_message_to_admin', methods=['POST'])
+@login_required
+def send_message_to_admin():
+    message = request.form.get('message')
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    admin = User.query.filter_by(is_admin=True).first()
+    if admin:
+        new_msg = Message(
+            sender_id=current_user.id,
+            recipient_id=admin.id,
+            message=message,
+            timestamp=timestamp,
+            status='unread'
+        )
+        db.session.add(new_msg)
+        db.session.commit()
+        flash("Message sent!", "success")
+    else:
+        flash("Admin not found.", "danger")
+
+    return redirect(url_for('messages'))
+
+@app.route('/generate_receipt/<int:payment_id>')
+@login_required
+def generate_receipt(payment_id):
+    payment = Payment.query.get_or_404(payment_id)
+    user = User.query.get(payment.user_id)
+
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # Logo and Company Name on the same line
+    logo_path = os.path.join('static', 'images', 'logo.png')
+    if os.path.exists(logo_path):
+        p.drawImage(logo_path, 40, height - 100, width=60, height=60, mask='auto')
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(110, height - 60, "SSEMBATYA RESEARCH SOLUTIONS")
+
+    # Line under header
+    p.line(40, height - 110, width - 40, height - 110)
+
+    # Payment Details
+    p.setFont("Helvetica", 12)
+    y = height - 140
+    line_spacing = 20
+    details = [
+        f"Username: {user.username}",
+        f"Amount: UGX {int(payment.amount):,}",
+        f"Purpose: {payment.purpose}",
+        f"Mobile Number: {payment.mobile_number}",
+        f"Date: {payment.date}",
+        f"Status: {payment.status}"
+    ]
+    for detail in details:
+        p.drawString(60, y, detail)
+        y -= line_spacing
+
+    # Thank you note
+    y -= 10
+    p.drawString(60, y, "Thank you for your payment!")
+
+    # Stamp
+    stamp_path = os.path.join('static', 'images', 'stamp.png')
+    if os.path.exists(stamp_path):
+        p.drawImage(stamp_path, width - 170, height - 240, width=100, height=100, mask='auto')
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f"receipt_{payment_id}.pdf", mimetype='application/pdf')
+
+@app.route('/messages', methods=['GET', 'POST'])
+@login_required
+def messages():
+    admin = User.query.filter_by(is_admin=True).first()
+
+    if not admin:
+        flash("Admin account not found.", "danger")
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        content = request.form.get('message')
+        if content:
+            new_msg = Message(
+                sender_id=current_user.id,
+                recipient_id=admin.id,
+                content=content,
+                timestamp=datetime.now(),
+                status='unread'
+            )
+            db.session.add(new_msg)
+            db.session.commit()
+            flash("Message sent to admin.", "success")
+            return redirect(url_for('messages'))
+
+    msgs = Message.query.filter(
+        (Message.sender_id == current_user.id) | 
+        (Message.recipient_id == current_user.id)
+    ).order_by(Message.timestamp.asc()).all()
+
+    return render_template('messages.html', messages=msgs)
+@app.route('/admin/messages', methods=['GET', 'POST'])
+@login_required
+def admin_messages():
+    if not current_user.is_admin:
+        flash("Access denied", "danger")
+        return redirect(url_for('index'))
+
+    # Get list of users who have messaged the admin or received messages from admin
+    user_ids = db.session.query(Message.sender_id).filter(Message.recipient_id == current_user.id).distinct().all()
+    user_ids += db.session.query(Message.recipient_id).filter(Message.sender_id == current_user.id).distinct().all()
+    user_ids = set([uid[0] for uid in user_ids if uid[0] != current_user.id])
+
+    users = User.query.filter(User.id.in_(user_ids)).all()
+
+    # Unread counts
+    unread_counts = {
+        user.id: Message.query.filter_by(recipient_id=current_user.id, sender_id=user.id, status='unread').count()
+        for user in users
+    }
+
+    return render_template('admin_messages_list.html', users=users, unread_counts=unread_counts)
+
+    # Get conversation
+    messages = Message.query.filter(
+        ((Message.sender_id == user_id) & (Message.recipient_id == current_user.id)) |
+        ((Message.sender_id == current_user.id) & (Message.recipient_id == user_id))
+    ).order_by(Message.timestamp).all()
+
+    return render_template('admin_chat.html', user=user, messages=messages)
+@app.route('/upload', methods=['GET', 'POST'])
+@login_required
+def upload():
+    if request.method == 'POST':
+        file = request.files['file']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            new_file = File(
+                user_id=current_user.id,
+                filename=filename,
+                upload_date=datetime.now().strftime('%Y-%m-%d %H:%M')
+            )
+            db.session.add(new_file)
+            db.session.commit()
+            flash("File uploaded successfully!", "success")
+            return redirect(url_for('view_files'))
+
+        flash("Invalid file type.", "danger")
+
+    return render_template('upload.html', company_name=app.config['COMPANY_NAME'], services_outline=app.config['SERVICES_OUTLINE'])
+
+@app.route('/download/<filename>')
+@login_required
+def download_file(filename):
+    file_record = File.query.filter_by(user_id=current_user.id, filename=filename).first()
+    if not file_record:
+        abort(403)  # Forbidden access
+
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+@app.route('/admin/files')
+@login_required
+def admin_files():
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    all_files = db.session.query(File, User.username).join(User).order_by(File.upload_date.desc()).all()
+
+    return render_template(
+        'admin_files.html',
+        all_files=all_files,
+        company_name=app.config['COMPANY_NAME'],
+        services_outline=app.config['SERVICES_OUTLINE']
+    )
+@app.route('/admin/upload', methods=['GET', 'POST'])
+@login_required
+def admin_upload():
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    users = User.query.filter_by(is_admin=False).all()
+
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        file = request.files.get('file')
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            new_file = File(
+                user_id=user_id,
+                filename=filename,
+                upload_date=datetime.now().strftime('%Y-%m-%d')
+            )
+            db.session.add(new_file)
+            db.session.commit()
+
+            flash("File uploaded for user successfully!", "success")
+            return redirect(url_for('admin_upload'))
+        else:
+            flash("Invalid file type or no file selected.", "danger")
+
+    return render_template('admin_upload.html', users=users)
+
+@app.route('/send_user_message', methods=['POST'])
+@login_required
+def send_user_message():
+    content = request.form.get('message', '')
+    audio = request.form.get('voice_note', '')  # ✅ must match input name in messages.html
+    print("🟢 User is sending message. Content:", content)
+    print("🟢 User voice note (first 100 chars):", audio[:100] if audio else "No audio")
+
+    admin = User.query.filter_by(is_admin=True).first()
+    if not admin:
+        flash("Admin not found.", "danger")
+        return redirect(url_for('messages'))
+
+    new_msg = Message(
+        sender_id=current_user.id,
+        recipient_id=admin.id,
+        content=content,
+        audio=audio,
+        timestamp=datetime.now(),
+        status='unread'
+    )
+    db.session.add(new_msg)
+    db.session.commit()
+    flash("Message sent to admin.", "success")
+    return redirect(url_for('messages'))
+
+@app.route('/admin/messages/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def admin_view_conversation(user_id):
+    if not current_user.is_admin:
+        flash("Access denied.", "danger")
+        return redirect(url_for('index'))
+
+    user = User.query.get_or_404(user_id)
+
+    if request.method == 'POST':
+        content = request.form.get('message', '')
+        audio = request.form.get('voice_note', '')  # ✅ must match name in admin_conversation.html
+        print("🟢 Admin is sending message. Content:", content)
+        print("🟢 Admin voice note (first 100 chars):", audio[:100] if audio else "No audio")
+
+        new_msg = Message(
+            sender_id=current_user.id,
+            recipient_id=user_id,
+            content=content,
+            audio=audio,
+            timestamp=datetime.now(),
+            status='unread'
+        )
+        db.session.add(new_msg)
+        db.session.commit()
+        flash("Message sent to user.", "success")
+        return redirect(url_for('admin_view_conversation', user_id=user_id))
+
+    messages = Message.query.filter(
+        ((Message.sender_id == user_id) & (Message.recipient_id == current_user.id)) |
+        ((Message.sender_id == current_user.id) & (Message.recipient_id == user_id))
+    ).order_by(Message.timestamp).all()
+
+    return render_template('admin_conversation.html', user=user, messages=messages)
+
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
+
 
 
 

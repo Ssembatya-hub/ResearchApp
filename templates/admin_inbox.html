@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Admin Inbox{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <h2>Messages</h2>
@@ -7,10 +8,22 @@
     <div class="chat-box" style="max-height: 500px; overflow-y: auto; background-color: #f8f9fa; padding: 20px; border-radius: 10px;">
         {% if inbox %}
             {% for msg in inbox %}
-                <div class="mb-3 p-2 rounded {% if msg[0] == current_user.id %}bg-primary text-white text-end{% else %}bg-light text-dark text-start{% endif %}" style="max-width: 70%; {% if msg[0] == current_user.id %}margin-left: auto;{% else %}margin-right: auto;{% endif %}">
-                    <div><strong>{% if msg[0] == current_user.id %}You{% else %}{{ msg[1] }}{% endif %}</strong></div>
-                    <div>{{ msg[2] }}</div>
-                    <div><small class="text-muted">{{ msg[3] }}</small></div>
+                <div class="mb-3 p-2 rounded 
+                    {% if msg.sender_id == current_user.id %}
+                        bg-primary text-white text-end
+                    {% else %}
+                        bg-light text-dark text-start
+                    {% endif %}" 
+                    style="max-width: 70%; 
+                    {% if msg.sender_id == current_user.id %}
+                        margin-left: auto;
+                    {% else %}
+                        margin-right: auto;
+                    {% endif %}">
+                    
+                    <div><strong>{% if msg.sender_id == current_user.id %}You{% else %}{{ msg.username }}{% endif %}</strong></div>
+                    <div>{{ msg.message }}</div>
+                    <div><small class="text-muted">{{ msg.timestamp }}</small></div>
                 </div>
             {% endfor %}
         {% else %}
@@ -27,4 +40,5 @@
     </form>
 </div>
 {% endblock %}
+
 
