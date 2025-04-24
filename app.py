@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 # Load env
 load_dotenv()
-os.environ['DATABASE_URL'] = 'postgresql://postgres:Breakthrough123456@localhost:5432/researchapp'
 
 print("Loaded DATABASE_URL:", os.environ.get("DATABASE_URL"))
 
