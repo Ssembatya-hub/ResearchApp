@@ -754,18 +754,16 @@ def admin_view_conversation(user_id):
 @app.route('/reset-admin-password')
 def reset_admin_password():
     from werkzeug.security import generate_password_hash
-    from yourapp import db  # Make sure `db = SQLAlchemy(app)` is imported
-    from yourapp.models import User  # Adjust if models are in different place
 
-    try:
-        admin = db.session.execute(db.select(User).filter_by(username="Ssembatya")).scalar_one_or_none()
-        if admin:
-            admin.password = generate_password_hash("Breakthrough123456")
-            db.session.commit()
-            return "Admin password reset successfully!"
-        return "Admin not found!"
-    except Exception as e:
-        return f"Error: {e}"
+    hashed = generate_password_hash("Breakthrough123456")
+    admin = User.query.filter_by(username='Ssembatya', is_admin=True).first()
+
+    if admin:
+        admin.password = hashed
+        db.session.commit()
+        return "✅ Admin password has been reset successfully!"
+    else:
+        return "❌ Admin user not found!"
 
 if __name__ == '__main__':
     with app.app_context():
