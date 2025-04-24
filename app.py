@@ -1,3 +1,4 @@
+from flask_socketio import SocketIO, emit
 import os
 from dotenv import load_dotenv
 
@@ -26,7 +27,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['COMPANY_NAME'] = "SSEMBATYA RESEARCH SOLUTIONS"
 app.config['SERVICES_OUTLINE'] = "Data Analysis, Proposal Writing, Training, Consultation, Questionnaire Development, Questionnaire Upload on Kobocollect, GIS Study Area Maps, Business Apps Development"
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
+# ✅ INIT app before this line!
+socketio = SocketIO(app)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -714,6 +716,13 @@ def send_user_message():
     )
     db.session.add(new_msg)
     db.session.commit()
+    # Emit real-time update
+    socketio.emit('new_message', {
+            'sender': current_user.username,
+            'message': content,
+            'timestamp': new_msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        })
+
     flash("Message sent to admin.", "success")
     return redirect(url_for('messages'))
 
@@ -768,7 +777,7 @@ def reset_admin_password():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    socketio.run(app, debug=True)
 
 
 
