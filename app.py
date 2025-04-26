@@ -24,7 +24,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['COMPANY_NAME'] = "SSEMBATYA RESEARCH SOLUTIONS"
+app.config['COMPANY_NAME'] = "SENOT RESEARCH SOLUTIONS"
 app.config['SERVICES_OUTLINE'] = "Data Analysis, Proposal Writing, Training, Consultation, Questionnaire Development, Questionnaire Upload on Kobocollect, GIS Study Area Maps, Business Apps Development"
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # ✅ INIT app before this line!
@@ -520,7 +520,7 @@ def generate_receipt(payment_id):
         p.drawImage(logo_path, 40, height - 100, width=60, height=60, mask='auto')
 
     p.setFont("Helvetica-Bold", 16)
-    p.drawString(110, height - 60, "SSEMBATYA RESEARCH SOLUTIONS")
+    p.drawString(110, height - 60, "SENOT RESEARCH SOLUTIONS")
 
     # Line under header
     p.line(40, height - 110, width - 40, height - 110)

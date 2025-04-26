@@ -92,6 +92,22 @@
 
     const chatBox = document.getElementById("chatBox");
     chatBox.scrollTop = chatBox.scrollHeight;
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+<script>
+    const socket = io();
+
+    socket.on('new_message', function(data) {
+        const chatBox = document.getElementById("chatBox");
+        const div = document.createElement('div');
+        div.classList.add('mb-3', 'text-start');
+        div.innerHTML = `
+            <div class="d-inline-block p-2 bg-secondary text-white rounded-3">${data.message}</div><br>
+            <small class="text-muted">${data.timestamp}</small>
+        `;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
 </script>
 {% endblock %}
 
