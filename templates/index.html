@@ -26,6 +26,7 @@
                 <tr>
                     <th>Name</th>
                     <th>Service</th>
+                    <th>Schedule</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -34,6 +35,7 @@
                 <tr>
                     <td>{{ order.name }}</td>
                     <td>{{ order.service }}</td>
+                    <td>{{ order.schedule_date }}</td>
                     <td>
                         {% if order.status == 'submitted' %}
                             <span class="badge bg-warning">Submitted</span>

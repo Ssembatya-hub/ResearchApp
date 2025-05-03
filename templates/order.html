@@ -29,7 +29,12 @@
             <label for="schedule_date" class="form-label">Preferred Schedule Date</label>
             <input type="date" class="form-control" id="schedule_date" name="schedule_date" required>
         </div>
-    
+        
+        <small class="text-muted d-block mb-3">
+            After submitting your order and schedule, please contact the admin via the 
+            <a href="{{ url_for('messages') }}">Messages</a> section for pricing and further engagement.
+        </small>        
+        
         <button type="submit" class="btn btn-primary">Submit Order</button>
     </form>
 </div>
